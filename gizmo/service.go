@@ -6,7 +6,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"go.opencensus.io/tag"
 	"google.golang.org/grpc"
 	"net/http"
 	"os"
@@ -48,14 +47,9 @@ func (s *service) HTTPMiddleware(h http.Handler) http.Handler {
 
 func (s *service) Middleware(ep endpoint.Endpoint) endpoint.Endpoint {
 	return endpoint.Endpoint(func(ctx context.Context, r interface{}) (interface{}, error) {
-		m := tag.FromContext(ctx)
-		k, err := tag.NewKey("http_server_route")
-		if err != nil {
-			s.lg.Log(err, "invalid_key")
-		}
-		res, _ := m.Value(k)
-		s.lg.Log("route", res)
-
+		rr := r.(*http.Request)
+		path := rr.URL.Path
+		_ = s.lg.Log("route:", path)
 		return ep(ctx, r)
 	})
 }
@@ -91,17 +85,17 @@ func (s *service) RPCOptions() []grpc.ServerOption {
 }
 
 // go-kit endpoint.Endpoint with core business logic
-func (s *service) getThings(ctx context.Context, req interface{}) (interface{}, error) {
+func (s *service) getThings(_ context.Context, _ interface{}) (interface{}, error) {
 	return s.things.GetAllThings()
 }
 
-func (s *service) getAThing(ctx context.Context, req interface{}) (interface{}, error) {
+func (s *service) getAThing(_ context.Context, req interface{}) (interface{}, error) {
 	id := req.(*GetThingsReq).ID
 	s.lg.Log("looking for id:", id)
 	return s.things.Find(id)
 }
 
-func decodeGetRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeGetRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	tid, _ := kit.Vars(r)["id"]
 	return &GetThingsReq{
 		ID: tid,

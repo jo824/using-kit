@@ -8,51 +8,51 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"os"
+	"time"
 	"using-kit/rawkit"
-	"using-kit/shared"
 )
 
-// Any component that needs to log should treat the logger like a dependency, same as a database connection.
-// So, we construct our logger in our func main, and pass it to components that need it.
-// We never use a globally-scoped logger.
-// We could pass a logger directly into our stringService implementation, but there’s a better way.
-// Let’s use a middleware, also known as a decorator. A middleware is a function that takes an endpoint
-// and returns an endpoint.
-// type Middleware func(Endpoint) Endpoint
-// Note, that the Middleware type is provided for you by go-kit.
 const DEFAULT_PORT = ":8080"
 
 func main() {
-	logger := log.NewLogfmtLogger(os.Stderr)
+	// Create a single logger, which we'll use and give to other components.
+	var logger log.Logger
+	{
+		logger = log.NewLogfmtLogger(os.Stderr)
+		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+		logger = log.With(logger, "caller", log.DefaultCaller)
+	}
 
-	svc := rawkit.ThingService{Things: shared.SeedThings()}
+	svc := rawkit.NewThingSvc(logger)
 
 	getThingHandler := httptransport.NewServer(
 		loggingMiddleware(log.With(logger, "method", "get-a-thing"))(rawkit.GetAThingEP(svc)),
 		rawkit.DecodeGetThingRequest,
-		rawkit.EncodeResponse,
+		httptransport.EncodeJSONResponse,
 	)
 
 	getAllThings := httptransport.NewServer(
 		loggingMiddleware(log.With(logger, "method", "get-aall"))(rawkit.GetAllThings(svc)),
 		rawkit.DecodeGetAllThings,
-		rawkit.EncodeResponse,
+		httptransport.EncodeJSONResponse,
 	)
 
 	r := mux.NewRouter()
-	r.Handle("/things", getAllThings)
-	r.Handle("/things/{id:[a-zA-Z]+}", getThingHandler)
+	r.MethodNotAllowedHandler = http.NotFoundHandler()
+	r.Handle("/things", getAllThings).Methods("GET")
+	r.Handle("/thing/{id:[a-zA-Z]+}", getThingHandler).Methods("GET")
 
-	logger.Log(`starting server on port:`, DEFAULT_PORT)
-	//returns err
+	_ = logger.Log("starting server on port:", DEFAULT_PORT)
 	_ = http.ListenAndServe(DEFAULT_PORT, r)
 }
 
 func loggingMiddleware(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request interface{}) (interface{}, error) {
-			logger.Log("msg", "calling endpoint")
-			defer logger.Log("msg", "called endpoint")
+		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+
+			defer func(begin time.Time) {
+				logger.Log("error", err, "took", time.Since(begin))
+			}(time.Now())
 			return next(ctx, request)
 		}
 	}

@@ -38,6 +38,7 @@ func main() {
 	)
 
 	r := mux.NewRouter()
+	r.NotFoundHandler = http.NotFoundHandler()
 	r.MethodNotAllowedHandler = http.NotFoundHandler()
 	r.Handle("/things", getAllThings).Methods("GET")
 	r.Handle("/thing/{id:[a-zA-Z]+}", getThingHandler).Methods("GET")

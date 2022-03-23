@@ -106,7 +106,7 @@
         wrapped by the endpoint type and made available at the transport layer.</p>
     <h3>More on life cycle of the request</h3>
     <p>It depends on your server configuration. Looking again at <code>kit.Server</code></p>
-    <pre><code><code><div>type Server struct {
+    <pre><code><div>type Server struct {
     e            endpoint.Endpoint
     dec          DecodeRequestFunc
     enc          EncodeResponseFunc
@@ -117,7 +117,7 @@
     errorHandler transport.ErrorHandler
 }
 
-</div></code></code></pre>
+</div></code></pre>
     <p>The server struct offers methods to configure the package private fields. Also will depend if you configure any
         additional server options. I'm going to exclude mentioning these, but you can click into <code>kit/transport/http/server.go</code>
         and read the comments on when they'd run in this request path.</p>

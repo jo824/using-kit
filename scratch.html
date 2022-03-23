@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <title>Using Go kit to build microservices</title>
+    <style>
+    .container {
+    padding: 5px;
+    }
+
+    .right {
+    float: right;
+    margin-right: 10px;
+    }
+
+    img {
+    height: 25em;
+    width: auto;
+    display: inline-block;
+    }
+    </style>
+</head>
+<body>
+<h2 >Using Go &amp; Go kit to build microservices for prod.</h2>
+<p>Over a series of posts, I'm going to walk through using Go and Go kit. We'll see the service evolve in complexity over time,
+    and how Go kit makes building these services easier and boosts developer productivity.  I've spent roughly 5 years using
+    these together, in various production environments, on multiple teams. I would describe my time using go kit as the most
+    enjoyable &amp; productive time of my career thus far. In this article, we'll take a look at 2 different example servers.
+    One is using basic features of kit. The other is another open-source project built on top of kit called Gizmo.
+    Gizmo is a more opinionated version of kit server. It comes with what I believe to be some nice abstractions/configuration
+    options. It's helpful if you're somewhat familiar with <code>net/http</code> package before reading this post,
+    but not required.</p>
+
+<div class="container">
+    <img src="req-path.png" class="right">
+<h2 >What is Go kit and why should we consider using it?</h2>
+<p>From the Kit FAQ
+<blockquote>
+    <p>Go kit is a collection of Go (golang) packages (libraries) that help you build robust, reliable, maintainable microservices.</p>
+</blockquote>
+<blockquote>
+    <p>Go kit de-risks both Go and microservices by providing mature patterns and idioms, written and maintained by a large
+        group of experienced contributors, and validated in production environments.</p>
+</blockquote>
+    </p>
+    <h2 >Following life of a request to our service</h2>
+    <p>Below is a graphic that shows the path a request takes and references the structures &amp; functions used to carry it out.</p>
+
+
+
+    <h2>Transport layer</h2>
+    <p>Here you have the flexibility of implementing one or more transports(example HTTP/gRPC). In our example service we
+        are using HTTP encoding a json response. The following code is defined in server/main.go in our project &amp; we'll look at
+        that first.</p>
+    <pre><code class="language-go">    svc := rawkit.NewThingSvc(logger)
+
+	getThingHandler := httptransport.NewServer(
+		loggingMiddleware(log.With(logger, <span class="hljs-string">&quot;method&quot;</span>, <span class="hljs-string">&quot;get-a-thing&quot;</span>))(rawkit.GetAThingEP(svc)),
+		rawkit.DecodeGetThingRequest,
+		httptransport.EncodeJSONResponse,
+	)
+
+	r := mux.NewRouter()
+	r.Handle(<span class="hljs-string">&quot;/things/{id:[a-zA-Z]+}&quot;</span>, getThingHandler).Methods(<span class="hljs-string">&quot;GET&quot;</span>)
+
+    http.ListenAndServe(DEFAULT_PORT, r)
+</code></pre>
+    <p>A few things to note.
+    <ol>
+        <li>I'm using a <code>Mux (gorilla) router</code>. There are different routers available to you with different
+            features/performance.</li>
+        <li><code>httptransport.NewServer</code> is from the package <code>github.com/go-kit/kit/transport/http</code> and it creates a kit.Server
+            that wraps an endpoint, a decoder for the request, and the <code>kit/transport/http.Server</code> type implements http.Handler.</li>
+        <li>The Endpoint(which we'll talk about in a second) needs a request decoder &amp; response encoder.</li>
+        <li><code>rawkit.GetAThing</code> is a function that is taking in the service we created, and returns an endpoint type.</li>
+        <li>Again, <code>httptransport.NewServer</code> returns a struct that implements Handler interface. We register that handler with a
+            route and set the permitted HTTP Verbs.<pre><code class="language-go"><div>    r.Handle(<span class="hljs-string">&quot;/things/{id:[a-zA-Z]+}&quot;</span>, getThingHandler).Methods(<span class="hljs-string">&quot;GET&quot;</span>)
+</div></code></pre>
+        </li>
+        <li>Finally we start listening on tcp network address and pass our router to so it replaces the <code>DefaultServeMux</code> of the
+            server.</li>
+    </ol></p>
+    <h3 id="endpoints">Endpoints</h3>
+    <p>Endpoint is the fundamental building block of servers and clients. It represents a single RPC method.
+        Endpoint type is a function that takes in an interface request and returns an interface response. The decoder/encoder
+        and endpoint func is where your safety and anti-fragile logic will live.
+        Which in this example looks like this:</p>
+    <pre><code class="language-go">
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">GetAThingEP</span><span class="hljs-params">(svc ThingSvc)</span> <span class="hljs-title">endpoint</span>.<span class="hljs-title">Endpoint</span></span> {
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, request <span class="hljs-keyword">interface</span>{})</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>{}, error)</span></span> {
+        req := request.(GetThingRequest)
+        v, err := svc.GetAThing(ctx, req.ID)
+            <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+                <span class="hljs-keyword">return</span> GetThingResponse{*v, err.Error()}, <span class="hljs-literal">nil</span>
+            }
+            <span class="hljs-keyword">return</span> GetThingResponse{*v, <span class="hljs-string">&quot;&quot;</span>}, <span class="hljs-literal">nil</span>
+    }
+}
+</code></pre>
+    <p>This is wrapping and calling our service. The value of request/response structs is more apparent in a microservice
+        that actually does things when our <code>GetAThing</code> func returns its result. In this case we are just returning to a remote
+        client, so a default json encoder is also appropriate.</p>
+    <h3 id="services">Services</h3>
+    <p>A service is where your business logic should live. Start by creating an interface that will be
+        wrapped by the endpoint type and made available at the transport layer.</p>
+    <h3>More on life cycle of the request</h3>
+    <p>It depends on your server configuration. Looking again at <code>kit.Server</code></p>
+    <pre><code><code><div>type Server struct {
+    e            endpoint.Endpoint
+    dec          DecodeRequestFunc
+    enc          EncodeResponseFunc
+    before       []RequestFunc
+    after        []ServerResponseFunc
+    errorEncoder ErrorEncoder
+    finalizer    []ServerFinalizerFunc
+    errorHandler transport.ErrorHandler
+}
+
+</div></code></code></pre>
+    <p>The server struct offers methods to configure the package private fields. Also will depend if you configure any
+        additional server options. I'm going to exclude mentioning these, but you can click into <code>kit/transport/http/server.go</code>
+        and read the comments on when they'd run in this request path.</p>
+    <p>Serve accepts incoming connections on the Listener l, creating a new service goroutine for each. The service goroutines
+        read requests and then call srv.Handler to reply to them. Simplest way to think about the router is an object containing
+        a map. This map is keyed by routes that have a value of a specific handler. You can create a catch all handler,
+        or configure a route not found method like <code>r.NotFoundHandler = http.NotFoundHandler()</code>. Assuming the req matches a
+        route we'll end up in our request decoder.</p>
+    <pre><code class="language-go"><div>
+    <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">DecodeGetThingRequest</span><span class="hljs-params">(_ context.Context, r *http.Request)</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>{}, error)</span></span> {
+        <span class="hljs-keyword">var</span> req GetThingRequest
+        req.ID = mux.Vars(r)[<span class="hljs-string">&quot;id&quot;</span>]
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(req.ID) == <span class="hljs-number">0</span> {
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, errors.New(<span class="hljs-string">&quot;missing ID route param&quot;</span>)
+        }
+        <span class="hljs-keyword">return</span> req, <span class="hljs-literal">nil</span>
+    }
+</div></code></pre>
+    <p>Things we can do at this point:</p>
+    <ol>
+        <li>Request validation. Setting some rules about what params can be passed in.</li>
+        <li>Accessing route variables, or decoding a request body and using these values to construct a request object for the
+            underlying service to work with.</li>
+    </ol>
+    <p>The next stop are the endpoint(s). We didn't mention this middleware earlier.
+        <code>Middleware</code> is actually a defined type in <code>kit/endpoint</code> package. That type is just an <code>kit.endpoint</code>.
+        Looking back at the main function you see we are wrapping our endpoint with a logging func.</p>
+    <pre><code class="language-go"><div>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">loggingMiddleware</span><span class="hljs-params">(logger log.Logger)</span> <span class="hljs-title">endpoint</span>.<span class="hljs-title">Middleware</span></span> {
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(next endpoint.Endpoint)</span> <span class="hljs-title">endpoint</span>.<span class="hljs-title">Endpoint</span></span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, request <span class="hljs-keyword">interface</span>{})</span> <span class="hljs-params">(response <span class="hljs-keyword">interface</span>{}, err error)</span></span> {
+
+            <span class="hljs-keyword">defer</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(begin time.Time)</span></span> {
+            logger.Log(<span class="hljs-string">&quot;error&quot;</span>, err, <span class="hljs-string">&quot;took&quot;</span>, time.Since(begin))
+        }(time.Now())
+            <span class="hljs-keyword">return</span> next(ctx, request)
+        }
+    }
+}
+</div></code></pre>
+    <p>Kit leans on using the decorator pattern to enforce a strict separation of concerns.
+        We go through each endpoint, eventually getting the endpoint that has wrapped our service.</p>
+    <pre><code class="language-go"><div>    <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">GetAThingEP</span><span class="hljs-params">(svc ThingSvc)</span> <span class="hljs-title">endpoint</span>.<span class="hljs-title">Endpoint</span></span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, request <span class="hljs-keyword">interface</span>{})</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>{}, error)</span></span> {
+            req := request.(GetThingRequest)
+            v, err := svc.GetAThing(ctx, req.ID)
+            <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+                <span class="hljs-keyword">return</span> GetThingResponse{*v, err.Error()}, <span class="hljs-literal">nil</span>
+            }
+            <span class="hljs-keyword">return</span> GetThingResponse{*v, <span class="hljs-string">&quot;&quot;</span>}, <span class="hljs-literal">nil</span>
+        }
+}
+</div></code></pre>
+    <p>We type cast the generic request to the one we are expecting for this route. We know this is safe after the decoder
+        has done its thing. From here the service retrieves data, we wrap it in a response object for the client consuming
+        this info. It's json encoded and sent back. I like using a response wrapper struct to wrap values and/or errors making
+        it easier for the client to work with.</p>
+
+
+    <hr>
+    <h3>A quick look at Gizmo</h3>
+    You can definitely implement most things in Gizmo using kit in your own project. I still think there's plenty to learn
+    from the project that can carry over into your own.
+    <p>
+     <ol>
+        <li>Multiple server configuration options available & the interfaces they provide</li>
+        <li>Route registration</li>
+        <li>Graceful server shutdown</li>
+    </ol>
+    <p>
+    <hr>
+    <p>In the next post we'll deploy this to a few different amazon services (EKS, EC2, &amp; Lambda).<br>
+    all example code can be found here:<br>
+    </p>
+    <a href="https://gokit.io/faq/">[go kit faq]</a><br>
+    <a href="https://en.wikipedia.org/wiki/Decorator_pattern">[decorator pattern]</a>
+
+
+</div>
+</body>
+
+</html>

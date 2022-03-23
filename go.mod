@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/NYTimes/gizmo v1.3.6
 	github.com/go-kit/kit v0.12.0
+	github.com/gorilla/mux v1.7.4
 	google.golang.org/grpc v1.40.0
 )
 
@@ -23,7 +24,6 @@ require (
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
-	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect

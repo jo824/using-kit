@@ -4,23 +4,24 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
-
-
-type MyFirstHandler string
+type MyFirstHandler struct{}
 
 func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
 	tm := time.Now().Format(time.RFC3339)
-	w.Write([]byte("The time is: " + tm))
+	w.Write([]byte(fmt.Sprintf("Hello %s, the time is: %s\n", name, tm)))
 }
 
 func main() {
 	var firstHandler MyFirstHandler
 	// declare our serveMux in main
-	router :=http.NewServeMux()
+	router := mux.NewRouter()
 	// register handler we defined - it now responds to any request to path use-handler
-	router.Handle("/use-handler", firstHandler)
+	router.Handle("/use-handler/{name:[a-zA-Z]+}", firstHandler).Methods("GET")
 
 	// ListenAndServe listens on the TCP network address addr and then calls
 	// Serve with handler to handle requests on incoming connections.
@@ -35,4 +36,3 @@ func main() {
 		fmt.Println("error while attempting to listen for incoming connections", err)
 	}
 }
-

@@ -11,18 +11,11 @@ In this tutorial we'll be looking at:
     * what features we expect in a production ready microservice
     * a few iterations/different approaches to building a server
         * A standard library approach
-        * Swapping out the default router
+        * Swapping out the default serveMux (router)
         * Go kit approach to organizing our microservice
 
 By the end it is my hope that you will have enough information to accurately assess using Go in your own work. Also,
 enough knowledge of Go to confidently build your own service from scratch.
-
-//It feels like a dynamically
-//Go was designed to help us do just that.
-//It was created wi
-//Most of us are working with [distributed systems](/#:~:text=Distributed%20System%20-%20Definition,order%20to%20achieve%20common%20goals.).
-//Go is designed with that in mind.
-
 
 ## Origins of Go.
 Picking the right tool for the job is important. Go is the language of the cloud, that's building the modern cloud
@@ -73,8 +66,7 @@ compiled language.
 
 
 ### Interfaces
-Interfaces in Go are one of, if no the best feature of the language
-Go's interfaces let you use [duck typing](https://en.wikipedia.org/wiki/Duck_typing) like you would in a purely dynamic
+Interfaces in Go are one of, if no the best feature of the language. Go's interfaces let you use [duck typing](https://en.wikipedia.org/wiki/Duck_typing) like you would in a purely dynamic
 language like Python but still have the compiler catch obvious mistakes. Go encourages composition over inheritance,
 using simple, often one-method interfaces to define trivial behaviors that serve as clean, comprehensible
 boundaries between components.
@@ -89,9 +81,8 @@ Go’s true power comes from the fact that the language is small and the standar
 to ramp up quickly. Why? It limits the number of ways you can do something and has a very opinionated view of the world
 at the compiler level.
 The goal of this section is to not only build our Go http server, but understand the structs and abstractions involved,
-and how they fit together. We will build off these ideas as we evolve our server.
-
-So lets dig into the `net/http` package. The first piece we'll need is the `Handler` interface.
+and how they fit together. We will build off these ideas as we evolve our server.Lets dig into the `net/http` package.
+The first piece we'll need is the `Handler` interface.
 
 ```
 type Handler interface {
@@ -99,15 +90,15 @@ ServeHTTP(ResponseWriter, *Request)
 }
 ```
 
-The `Handler` interface is contains a single method `ServeHTTP` that takes 2 values"
- 1. `ResponseWriter` which is an interface is used by an HTTP handler to construct an HTTP response
- 2. A pointer to an `http.Request`
+`Handler` is an interface that contains a single method `ServeHTTP`. `ServeHTTP` takes 2 values
+ 1. `ResponseWriter` which is an interface is used by an HTTP handler to construct an HTTP response.
+ 2. A pointer to an `http.Request` struct.
 
 We'll look at the Request and Response objects in more detail in a bit. We'll work each of them often.
 Now lets build a handler knowing what we know about Go types and interfaces.
 
 ```
-type MyFirstHandler string
+type MyFirstHandler struct{}
 
 func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 fmt.Println("MyFirstHandler type implements http.Handler")
@@ -136,26 +127,22 @@ fmt.Println("error while attempting to listen for incoming connections", err)
 
 Lets break this down a bit. `ListenAndServer` tells our app to listen on a specific port/network address that we provide.
 The second parameter is our handler. If you read the comment above you'll see that http library provides us with a default
-handler - `DefaultServeMux` if we do not provide our own. What is a ServeMux? From the standard library comments:
+handler - `DefaultServeMux` if we do not provide our own. What is a ServeMux?
+From the standard library comments:
 
 ```
 // ServeMux is an HTTP request multiplexer.
 // It matches the URL of each incoming request against a list of registered
 // patterns and calls the handler for the pattern that
 // most closely matches the URL.
-
 ```
 Still ServeMux? Handler?
-* If you've ever used an http framework in another language that leveraged an MVC-pattern, handlers are similar to controllers.
-They perform your application logic & write response information (headers, body, etc).
-* servemux is also referred to as a router. [There are additional routers available to you](https://benhoyt.com/writings/go-routing/)
-outside of the standard library. Primary function of a router is to store a mapping between url paths and their handlers
-that we define. Router features, and implementation will vary, but they all implement `ServeHTTP` interface.
+* If you've ever used an http framework in another language that leveraged an MVC-pattern, handlers are similar to controllers. They perform your application logic & write response information (headers, body, etc).
+* servemux is also referred to as a router. [There are additional routers available to you](https://benhoyt.com/writings/go-routing/) outside of the standard library. Primary function of a router is to store a mapping between url paths and their handlers that we define. Router features, and implementation will vary, but they all implement `ServeHTTP` interface.
 
 [benchmarks for routers](https://github.com/julienschmidt/go-http-routing-benchmark)
 
-Knowing what we do now. Lets reshuffle our example a bit.
-
+Lets reshuffle our example a bit.
 
 ```
 func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +173,86 @@ What's changed?
 * Declaring a serveMux aka router in our main function.
 * Register our handler to a specific route "/use-handler"
 
+Now lets really start to build this thing up. We mentioned earlier that there are a bunch of routers
+available to us and now we're going to use one. This new router gives us a convenient method for setting named path
+parameters & helper function for accessing them. Here's what it looks like:
 
+```
+import (
+"fmt"
+"net/http"
+"time"
+
+"github.com/gorilla/mux"
+)
+
+
+type MyFirstHandler struct{}
+
+func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+//get URL path param name from the request
+name := mux.Vars(r)["name"]
+tm := time.Now().Format(time.RFC3339)
+w.Write([]byte(fmt.Sprintf("Hello %s, the time is: %s\n", name, tm)))
+}
+//main.go
+```
+
+For the first time we are importing a package outside the standard library. We're now using the [gorilla/mux](https://github.com/gorilla/mux#readme).
+We also use the `mux.Vars`  helper function which takes the route params and puts them in a map for us to access.
+
+Here's the updated route:
+```
+router.Handle("/use-handler/{name:[a-zA-Z]+}", firstHandler).Methods("GET")
+
+//main.go
+```
+We set the allowable http verb for this route with `.METHODS("GET")`,set expected route param value, and naming it name.
+I think we're ready to turn this into a real service.
+
+
+## Intro to Go kit
+In this section, we'll talk about Go-kit,  which I'll refer to as kit for the rest of this post.
+### What is *kit* and why should I use it?
+In their own words:
+> kit is a collection of Go (golang) packages (libraries) that help you build robust, reliable, maintainable microservices.
+>You should use kit if you know you want to adopt the microservices pattern in your organization. Go kit will help you structure and build out your services, avoid common pitfalls, and write code that grows with grace. Go kit de-risks both Go and microservices by providing mature patterns and idioms, written and maintained by a large group of experienced contributors, and validated in production environments.
+
+The major benefit of *kit* is that it provides a some nice abstractions to structure your service in 3 layers.
+1. Transport layer
+2. Endpoint layer
+3. Service layer
+
+Before we jump into each section lets talk about how I have this project is structured. For now it's a flat directory structure. I'm only planning to create a single service
+```
+example-project
+├── README.MD
+├── endpoints.go
+├── server
+│ └── main.go
+├── service.go
+└── transport.go
+```
+I like to put my main function inside of a server directory along with any thing related to building it (Dockerfile, build script ..).
+If there were multiple services all the files associated with this service would move into their own directory.
+```
+example-project
+├── serivceA
+│ ├── endpoints.go
+│ ├── service.go
+│ └── transport.go
+├── server
+│└── main.go
+└── serviceB
+├── service.go
+└── transport.go
+```
+
+### Transports
+Here you have the flexibility of implementing one or more transports(example HTTP/gRPC). Lets start writing some code to dig into this.
+
+[kit-faq](https://gokit.io/faq/#what-is-go-kit)
+[kit-examples](https://github.com/go-kit/examples)
 
 
 

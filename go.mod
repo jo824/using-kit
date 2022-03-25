@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/NYTimes/gizmo v1.3.6
 	github.com/go-kit/kit v0.12.0
-	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/mux v1.8.0
 	google.golang.org/grpc v1.40.0
 )
 

@@ -12,3 +12,15 @@ eventually will need
 but there aren't yet any dependencies.
 so
 `go run main.go`
+
+
+Running as docker container
+
+`docker build -t simple-go-server .`
+`docker run -d -p 8833:8833 simple-go-server`
+
+kill container & remove image
+```
+docker stop $(docker ps -a -q)
+docker rm $(docker ps -a -q)
+```

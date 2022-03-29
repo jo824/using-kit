@@ -87,6 +87,8 @@ We'll look at the Request and Response objects in more detail in a bit. We'll wo
 Now lets build a handler knowing what we know about Go types and interfaces.
 
 ```go
+//main.go
+
 type MyFirstHandler struct{}
 
 func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -110,8 +112,6 @@ func main() {
         fmt.Println("error while attempting to listen for incoming connections", err)
     }
 }
-
-//main.go
 ```
 
 Lets break this down a bit. `ListenAndServer` tells our app to listen on a specific port/network address that we provide.
@@ -133,6 +133,7 @@ Still ServeMux? Handler?
 Lets reshuffle our example a bit.
 
 ```go
+//main.go
 func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     tm := time.Now().Format(time.RFC3339)
     w.Write([]byte("The time is: " + tm))
@@ -151,7 +152,6 @@ func main() {
         fmt.Println("error while attempting to listen for incoming connections", err)
     }
 }
-//main.go
 ```
 What's changed?
 
@@ -165,6 +165,8 @@ available to us and now we're going to use one. This new router gives us a conve
 Here's what it looks like:
 
 ```
+//main.go
+
 import (
 "fmt"
 "net/http"
@@ -182,7 +184,6 @@ func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     tm := time.Now().Format(time.RFC3339)
     w.Write([]byte(fmt.Sprintf("Hello %s, the time is: %s\n", name, tm)))
 }
-//main.go
 ```
 
 For the first time we are importing a package outside the standard library. We're now using the [gorilla/mux](https://github.com/gorilla/mux#readme).
@@ -223,6 +224,8 @@ In this example we won't explore the benefits of multiple transports, but deal o
 
 
 ```go
+// using-kit/server/main.go
+
 svc := rawkit.NewThingSvc(logger)
 
 getThingHandler := httptransport.NewServer(
@@ -235,7 +238,6 @@ r := mux.NewRouter()
 r.Handle("/things/{id:[a-zA-Z]+}", getThingHandler).Methods("GET")
 
 http.ListenAndServe(DEFAULT_PORT, r)
-// using-kit/server/main.go
 ```
 
 Breaking down our new main function:
@@ -253,6 +255,8 @@ we interact with ` w http.ResponseWriter & r *http.Request` types and we will ag
 is our decoder.
 
 ```go
+using-kit/service/endpoints.go
+    
 func DecodeGetThingRequest(_ context.Context, r *http.Request) (interface{}, error) {
 var req GetThingRequest
 req.ID = mux.Vars(r)["id"]

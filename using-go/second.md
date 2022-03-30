@@ -9,7 +9,6 @@ This will be the first article in a series exploring building systems with Go. I
 - a standard library approach
 - swapping out the default serveMux (router)
 - Go kit approach to organizing our microservice
-- what features we expect in a production ready microservice #TODO
 
 By the end it is my hope that you will have enough information to accurately assess using Go in your own work. Also, enough knowledge of Go to confidently build your own service from scratch.
 
@@ -252,6 +251,7 @@ Breaking down our new main function:
 
 Peeling this back another layer and look at the Endpoint function, decoders, and encoders that live inside this kit defined type, server, that acts as a wrapper.
 
+#### Endpoint layer
 An `Endpoint` is the fundamental building block of servers and clients. It represents a single RPC method.
 Endpoint type is a function that takes in an interface request and returns an interface response. The decoder/encoder
 and endpoint func is where your safety and anti-fragile logic will live. Looking back to our simple server example
@@ -277,7 +277,276 @@ underlying service(s) expect.
 - Here we interact with http.Request object. Taking it and converting the request into a struct that our service will interact with going forward.
 - We also validate the request. Deserializing the payload body(if it was a post/put request). In this case it's a get request. We grab the route parameter 'id' which is a string, and we confirm that it's not an empty string.
 
-This is a good place for any type of validation and conversion or types we expect to work with.
+This is a good place for any type of request parameter validation and conversion to types we expect to work with inside the service.
+
+#### Service layer
+The service layer is where all of your business logic should live. Business logic should have no knowledge of endpoint- or especially transport-domain concepts. A service typically groups together multiple endpoints. Kit uses [middleware(via decorator pattern)](https://en.wikipedia.org/wiki/Decorator_pattern) to break logic into different components.
+Our service will take advantage of this pattern to implement logging.
+Our example service interface looks like:
+```go
+    type Service interface {
+        GetAThing(context.Context, string) (*Thing, error)
+        GetAllThings(context.Context) ([]Thing, error)
+        AddThing(ctx context.Context, thing *Thing) error
+    }
+```
+
+To implement these methods for this example we implement a `ThingService` which retrieves arbitrary struct type called Thing from a map. This will satisfy the interface we defined.
+
+```go
+//using-kit/service/service.go
+    package service
+
+    import "errors"
+
+    type Thing struct {
+        ID        string
+        Available bool
+    }
+
+    type ThingStore struct {
+        things map[string]*Thing
+    }
+
+    func SeedThings() *ThingStore {
+        tings := map[string]*Thing{
+            "abd": {
+                 ID:        "abd",
+                Available: true,
+            },
+            "eek": {
+                ID:        "eek",
+                Available: true,
+            },
+            "yik": {
+                ID:        "yik",
+                Available: true,
+            },
+            "yak": {
+                ID:        "yak",
+                Available: true,
+            },
+        }
+        return &ThingStore{tings}
+    }
+
+    func (ts *ThingStore) Save(t *Thing) error {
+        ts.things[t.ID] = t
+        return nil
+    }
+
+    func (ts *ThingStore) Find(id string) (*Thing, error) {
+        if val, ok := ts.things[id]; ok {
+        return val, nil
+        }
+        return nil, errors.New("id not found")
+    }
+
+    func (ts *ThingStore) GetAllThings() ([]Thing, error) {
+        tls := make([]Thing, 0, len(ts.things))
+        for _, v := range ts.things {
+            tls = append(tls, *v)
+        }
+        return tls, nil
+    }
+```
+
+And our logging middleware:
+```go
+//using-kit/middleware.go
+
+...
+
+    type Middleware func(Service) Service
+
+    func LoggingMiddleware(logger log.Logger) Middleware {
+        return func(next Service) Service {
+            return &loggingMiddleware{
+            next:   next,
+            logger: logger,
+            }
+        }
+    }
+
+    type loggingMiddleware struct {
+        next   Service
+        logger log.Logger
+    }
+
+    func (mw loggingMiddleware) GetAllThings(ctx context.Context) (ts []Thing, err error) {
+        defer func(begin time.Time) {
+            mw.logger.Log("method", "GetAllThings", "took", time.Since(begin), "err", err)
+        }(time.Now())
+        return mw.next.GetAllThings(ctx)
+    }
+
+    func (mw loggingMiddleware) AddThing(_ context.Context, _ *Thing) error {
+        panic("implement me")
+    }
+
+    func (mw loggingMiddleware) GetAThing(ctx context.Context, tid string) (t *Thing, err error) {
+        defer func(begin time.Time) {
+            mw.logger.Log("method", "GetAThing", "id", tid, "took", time.Since(begin), "err", err)
+        }(time.Now())
+        return mw.next.GetAThing(ctx, tid)
+    }
+```
+
+
+Lets quickly recap each layer and refactor this example into something that more closely represents an actual production service.
+Our project structure will end up looking something like this:
+```go
+.
+├── README.md
+├── go.mod
+├── go.sum
+├── main.go
+└── service
+    ├── client.go
+    ├── endpoints.go
+    ├── middleware.go
+    ├── service.go
+    ├── service_test.go
+    ├── store.go
+    └── transport.go
+```
+Lets look at this again by starting with our main function. We should try and think about how this builds a mental model for adding functionality to our service.
+We the service just as we did before. We instantiate it and chain the logging middleware to our `ThingService`.
+Now to cleanup the main function we've moved our `kit.Server` logic to the <code>transport.go</code> file.
+
+```go
+//using-kit/main.go
+ ...
+    const DEFAULT_PORT = ":8008"
+
+    func main() {
+    // Create a single logger, which we'll use and give to other components.
+    var l log.Logger
+    {
+        l = log.NewLogfmtLogger(os.Stderr)
+        l = log.With(l, "ts", log.DefaultTimestampUTC)
+        l = log.With(l, "caller", log.DefaultCaller)
+    }
+
+    svc := service.NewThingSvc()
+    svc = service.LoggingMiddleware(l)(svc)
+    r := service.BuildHTTPHandler(svc, log.With(l, "component", "HTTP"))
+
+...
+
+```
+In this layer we want to include anything that interacts with our transport type - in this case HTTP. More concretely
+- Building our router, which implements our custom `http.handler`.
+- our decoders and encoders which creates a contract between the client and server for request/response types.
+
+```go
+//using-kit/transport.go
+
+
+    func BuildHTTPHandler(svc Service, l log.Logger) http.Handler {
+        r := mux.NewRouter()
+        eps := MakeServerEndpoints(svc)
+        options := []httptransport.ServerOption{
+        httptransport.ServerErrorHandler(transport.NewLogErrorHandler(l)),
+        httptransport.ServerErrorEncoder(encodeError),
+    }
+
+    r.NotFoundHandler = http.NotFoundHandler()
+    r.MethodNotAllowedHandler = http.NotFoundHandler()
+
+    r.Methods("GET").Path("/thing/{id:[a-zA-Z]+}").Handler(httptransport.NewServer(
+        eps.GetThingEndpoint,
+        decodeGetThingRequest,
+        encodeResponse,
+        options...,
+    ))
+
+    r.Methods("GET").Path("/things").Handler(httptransport.NewServer(
+        eps.GetAllThingsEndpoint,
+        decodeGetAllThings,
+        encodeResponse,
+        options...,
+    ))
+
+        return r
+    }
+
+    func decodeGetThingRequest(_ context.Context, r *http.Request) (interface{}, error) {
+        var req getThingRequest
+        req.ID = mux.Vars(r)["id"]
+        if len(req.ID) == 0 {
+            return nil, ErrNoID
+        }
+        return req, nil
+    }
+
+    func decodeGetAllThings(_ context.Context, r *http.Request) (interface{}, error) {
+        return r, nil
+    }
+
+    func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+        w.Header().Set("Content-Type", "application/json; charset=utf-8")
+        return json.NewEncoder(w).Encode(response)
+    }
+
+...
+```
+
+Another change made for convenience was to wrap all `kit.Endpoint`s we'd like to expose in an `Endpoints` object. We initialize each endpoint by calling `MakeServerEndpoints` in <code>transport.go</code>.
+When we think endpoints we should expect to include:
+- Endpoints themselves
+- Our request and response struct types (remember this is running after the decoder. The decoder should initialize our request type for the endpoint to pass to our service).
+- Any business logic pertaining to the validation of a request.(i.e. parameters fall within acceptable ranges/request has provided all required fields, etc.)
+- can also link together multiple calls to underlying services, whatever is required to build up the response.
+
+```go
+//using-kit/endpoints.go
+
+...
+
+    type Endpoints struct {
+        GetThingEndpoint     endpoint.Endpoint
+        GetAllThingsEndpoint endpoint.Endpoint
+    }
+
+    func MakeServerEndpoints(svc Service) Endpoints {
+        return Endpoints{
+            GetThingEndpoint:     GetAThingEndpoint(svc),
+            GetAllThingsEndpoint: GetAllThings(svc),
+        }
+    }
+
+    func GetAThingEndpoint(svc Service) endpoint.Endpoint {
+        return func(ctx context.Context, request interface{}) (interface{}, error) {
+        req := request.(getThingRequest)
+        v, err := svc.GetAThing(ctx, req.ID)
+        if err != nil && v == nil {
+          return getThingResponse{}, errors.New("requested thing doesn't exist\n")
+        }
+        return getThingResponse{*v, ""}, nil
+        }
+    }
+
+    func GetAllThings(svc Service) endpoint.Endpoint {
+        return func(ctx context.Context, request interface{}) (interface{}, error) {
+        return svc.GetAllThings(ctx)
+        }
+    }
+
+    type getThingRequest struct {
+        ID string `json:"id"`
+    }
+
+    type getThingResponse struct {
+        Thing Thing  `json:"thing"`
+        Err   string `json:"err,omitempty"` // errors don't JSON-marshal, so we use a string
+    }
+```
+Hopefully this has given you a blueprint for building your own services using Go with or without kit. Sticking to this pattern will enable you and your team to focus on business logic, and building features.
+The service is self-policing, enforcing best practices via separation of concerns. I'm confident using the model that kit provides, along with core tooling around Go, anyone can become a proficient contributor quickly(in comparison to other languages/frameworks).
+All of the [example code for this post can be found here](https://github.com/jo824/using-kit)
+
+We'll cover building a pipeline to support continuous deployment in future posts and ways to deploy Go services to different AWS services. And adding observability metrics to the service.
+
 
 [kit-faq](https://gokit.io/faq/#what-is-go-kit)
-[kit-examples](https://github.com/go-kit/examples)

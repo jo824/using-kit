@@ -44,6 +44,6 @@ type getThingResponse struct {
 	Err   string `json:"err,omitempty"` // errors don't JSON-marshal, so we use a string
 }
 
-type AllThingsResponse struct {
+type allThingsResponse struct {
 	Ts []Thing `json:"v"`
 }

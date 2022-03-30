@@ -25,6 +25,9 @@ func main() {
 	svc = service.LoggingMiddleware(l)(svc)
 	r := service.BuildHTTPHandler(svc, log.With(l, "component", "HTTP"))
 
+	//Here we are taking advantage of go routines and channels
+	//so that when the server shuts down it can do it gracefully
+	//logging any errors or taking advantage of exit functions provided by the server impl
 	errs := make(chan error)
 	go func() {
 		c := make(chan os.Signal, 1)

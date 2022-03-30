@@ -31,21 +31,22 @@ type T struct { a, b int }
 ```
 
 Here's the same declarations in C.
-```
-int (*fn)(int[]);
-struct T { int a, b; }
+```go
+
+    int (*fn)(int[]);
+    struct T { int a, b; }
 ```
 Declarations introduced by keyword are easier to parse both for people and for computers, and having the type syntax not be the expression syntax as it is in C has a significant effect on parsing: it adds grammar but eliminates ambiguity. But there is a nice side effect, too: for initializing.
 
 Here's an example of explicit vs derived initialization
-```
-// NewT is a method on type T above that returns a newly create T struct
-// a method is just a function with a special receiver, in this case type T.
-func (t T) NewT(a,b int)(T){
-}
+```go
 
-var myStruct T = t.newT(val1,val2) //explicit - assuming type T has this method associated with it.This isn't some built in constructor
-mystruct := t.newT(val1,val2)      //derived
+    // NewT is a method on type T above that returns a newly create T struct
+    // a method is just a function with a special receiver, in this case type T.
+    func (t T) NewT(a,b int)(T){}
+
+    var myStruct T = t.newT(val1,val2) //explicit - assuming type T has this method associated with it.This isn't some built in constructor
+    mystruct := t.newT(val1,val2)      //derived
 ```
 
 To me, Go feels like a dynamically typed language but I'm still getting the benefits and speed of a statically typed,
@@ -72,10 +73,11 @@ We will build off these ideas as we evolve our server. Lets dig into the <code>`
 
 The first piece we'll need is the `Handler` interface.
 
-```
-type Handler interface {
-ServeHTTP(ResponseWriter, *Request)
-}
+```go
+
+    type Handler interface {
+    ServeHTTP(ResponseWriter, *Request)
+    }
 ```
 
 `Handler` is an interface that contains a single method `ServeHTTP`. `ServeHTTP` takes 2 values:

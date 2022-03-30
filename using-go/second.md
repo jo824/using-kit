@@ -25,14 +25,14 @@ Alright, enough of this and lets actually look at some code.
 ### Quick look at syntax
 Go was designed with syntax simplicity and readability in mind. We wanted a feeling of familiarity to existing languages declaration syntax is closer to Pascal's than to C's. The declared name appears before  the type and there are more keywords:
 Here we declare a function named 'fn' , and a struct of custom type `T`
-``
-var fn func([]int) int
-type T struct { a, b int }
+
+```go
+    var fn func([]int) int
+    type T struct { a, b int }
 ```
 
 Here's the same declarations in C.
-```c
-
+```C
     int (*fn)(int[]);
     struct T { int a, b; }
 ```

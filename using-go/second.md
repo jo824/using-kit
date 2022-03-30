@@ -200,7 +200,7 @@ from request/response objects[^6].
 [^6]:[http request/response object info](https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages)
 
 ### What is *kit* and why should I use it?
-In their own words:
+In their own words[^8] :
 > kit is a collection of Go (golang) packages (libraries) that help you build robust, reliable, maintainable microservices.
 >You should use kit if you know you want to adopt the microservices pattern in your organization. Go kit will help you structure and build out your services, avoid common pitfalls, and write code that grows with grace. Go kit de-risks both Go and microservices by providing mature patterns and idioms, written and maintained by a large group of experienced contributors, and validated in production environments.
 
@@ -221,6 +221,7 @@ Transport layer comes from the OSI model[^7]. The transport layer as it relates 
 HTTP isn't actually a transport layer, but our HTTP.server relies on TCP which falls in the transport layer.
 
 [^7]:[OSI model](https://en.wikipedia.org/wiki/OSI_model#Layer_4:_Transport_layer)
+
 Here you have the flexibility of implementing one or more transports(example HTTP/gRPC). In our example service we
 are using HTTP encoding a json response. The following code is defined in <code>rawkit/server/main.go</code> in our project and we'll look at
 that first.
@@ -282,7 +283,7 @@ underlying service(s) expect.
 This is a good place for any type of request parameter validation and conversion to types we expect to work with inside the service.
 
 #### Service layer
-The service layer is where all of your business logic should live. Business logic should have no knowledge of endpoint- or especially transport-domain concepts. A service typically groups together multiple endpoints. Kit uses [middleware(via decorator pattern)](https://en.wikipedia.org/wiki/Decorator_pattern) to break logic into different components.
+The service layer is where all of your business logic should live. Business logic should have no knowledge of endpoint- or especially transport-domain concepts. A service typically groups together multiple endpoints. Kit uses [middleware(via the decorator pattern)](https://en.wikipedia.org/wiki/Decorator_pattern) to break logic into different components.
 Our service will take advantage of this pattern to implement logging.
 Our example service interface looks like:
 ```go
@@ -551,4 +552,4 @@ All of the [example code for this post can be found here](https://github.com/jo8
 We'll cover building a pipeline to support continuous deployment in future posts and ways to deploy Go services to different AWS services. And adding observability metrics to the service.
 
 
-[kit-faq](https://gokit.io/faq/#what-is-go-kit)
+[^8]:[kit-faq](https://gokit.io/faq/#what-is-go-kit) Complete kit FAQ

@@ -56,16 +56,17 @@ compiled language.
 
 
 ### Interfaces
-Interfaces in Go are one of, if not the best feature of the language. Go's interfaces let you use [duck typing](https://en.wikipedia.org/wiki/Duck_typing) like you would in a purely dynamic
-language like Python but still have the compiler catch obvious mistakes. Go encourages composition over inheritance,
+Interfaces in Go are one of, if not the best feature of the language[^2]. Go's interfaces let you use [duck typing](https://en.wikipedia.org/wiki/Duck_typing) like you would in a purely dynamic
+language like Python but still have the compiler catch obvious mistakes[^4]. Go encourages composition over inheritance[^3],
 using simple, often one-method interfaces to define trivial behaviors that serve as clean, comprehensible
 boundaries between components.
 
 In the next section we'll see concrete examples of using interfaces and how they relate to building our first server.
 
-[more on composition over inheritance](https://go.dev/talks/2012/splash.article#TOC_15.)
-[more on types](https://go.dev/doc/faq#types)
-[interfaces history](https://research.swtch.com/interfaces)
+
+[^2]:[interfaces history](https://research.swtch.com/interfaces)
+[^3]:[more on composition over inheritance](https://go.dev/talks/2012/splash.article#TOC_15.)
+[^4]:[more on types](https://go.dev/doc/faq#types)
 
 ### Building an HTTP server using Go's standard Library.
 Go’s true power comes from the fact that the language is small and the standard library is large. It enables newcomers to ramp up quickly.
@@ -192,8 +193,11 @@ We set the allowable http verb for this route with `.METHODS("GET")`,set expecte
 
 
 ## Intro to Go kit
-In this section, we'll talk about Go-kit, which I'll refer to as kit for the rest of this post. Quick note: Having a solid understanding of [HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview) in general will help with the digestion of this content. At a minimum knowing a little bit about what you can expect
-from [request/response objects](https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages).
+In this section, we'll talk about Go-kit, which I'll refer to as kit for the rest of this post. Quick note: Having a solid understanding of HTTP[^5] in general will help with the digestion of this content. At a minimum knowing a little bit about what you can expect
+from request/response objects[^6].
+
+[^5]:[http overview](https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview)
+[^6]:[http request/response object info](https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages)
 
 ### What is *kit* and why should I use it?
 In their own words:
@@ -212,10 +216,11 @@ The major benefit of *kit* is that it provides some nice abstractions that assis
 3. Service layer
 
 #### Transport layer
-Transport layer comes from the [OSI model](https://en.wikipedia.org/wiki/OSI_model#Layer_4:_Transport_layer). The transport layer as it relates to OSI is defined as
+Transport layer comes from the OSI model[^7]. The transport layer as it relates to OSI is defined as
 ``` means of transferring variable-length data sequences from a source to a destination host, while maintaining the quality of service functions. ```
 HTTP isn't actually a transport layer, but our HTTP.server relies on TCP which falls in the transport layer.
 
+[^7]:[OSI model](https://en.wikipedia.org/wiki/OSI_model#Layer_4:_Transport_layer)
 Here you have the flexibility of implementing one or more transports(example HTTP/gRPC). In our example service we
 are using HTTP encoding a json response. The following code is defined in <code>rawkit/server/main.go</code> in our project and we'll look at
 that first.

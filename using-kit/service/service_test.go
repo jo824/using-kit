@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"github.com/go-kit/kit/log"
 	"testing"
 )
 
@@ -27,7 +26,7 @@ func TestGetAThing(t *testing.T) {
 			false,
 		},
 	}
-	s := NewThingSvc(log.NewNopLogger())
+	s := NewThingSvc()
 	for _, tc := range tt {
 		t.Run(tc.id, func(t *testing.T) {
 			res, _ := s.GetAThing(context.TODO(), tc.id)

@@ -2,7 +2,12 @@ package service
 
 import (
 	"context"
-	"github.com/go-kit/kit/log"
+	"errors"
+)
+
+var (
+	ErrNoID          = errors.New("id doesn't exist")
+	ErrAlreadyExists = errors.New("thing with id already exists")
 )
 
 type Service interface {
@@ -13,11 +18,10 @@ type Service interface {
 
 type ThingService struct {
 	Things *ThingStore
-	l      log.Logger
 }
 
-func NewThingSvc(l log.Logger) Service {
-	return ThingService{SeedThings(), l}
+func NewThingSvc() Service {
+	return ThingService{SeedThings()}
 }
 
 func (t ThingService) GetAThing(_ context.Context, id string) (*Thing, error) {

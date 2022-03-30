@@ -1,0 +1,405 @@
+<p>Keep it simple, stupid. The KISS principle is one of my favorites. Often we are guilty of making systems unnecessarily complex. This creates a miserable cycle of working with these things that we create. Does it have to be this way? Go was designed with simplicity and ease of use top of mind. I’m claiming by using Go to build your next server/service the benefits will go beyond the performance of your software. You will develop software faster, be happier, and maybe even bored with how easy it is to use Go.</p>
+<p>This will be the first article in a series exploring building systems with Go. In this post we’ll be looking at:</p>
+<ul>
+<li>origins of Go</li>
+<li>notes on Go syntax and Interfaces</li>
+<li>the <code>net/http</code> package from the standard library</li>
+<li>a few iterations/different approaches to building a server</li>
+<li>a standard library approach</li>
+<li>swapping out the default serveMux (router)</li>
+<li>Go kit approach to organizing our microservice</li>
+</ul>
+<p>By the end it is my hope that you will have enough information to accurately assess using Go in your own work. Also, enough knowledge of Go to confidently build your own service from scratch.</p>
+<h2 id="origins-of-go">Origins of Go</h2>
+<p>Picking the right tool for the job is important. Go is the language of the cloud, that’s building the modern cloud (i.e. docker, kubernetes). Before Go it didn’t seem like any one language existed that checked all the boxes required for current day development challenges. Why can’t we have efficient compilation, efficient execution, and ease of programming? In <a target="_blank" href="https://talks.golang.org/2012/splash.article">a talk from 2012</a> Rob Pike describes why they created Go for use at Google. &gt; Go was designed and developed to make working in this environment more productive. Besides its better-known aspects such as built-in concurrency and garbage collection, Go’s design considerations include rigorous dependency management, the adaptability of software architecture as systems grow, and robustness across the boundaries between components.</p>
+<p>A programming language built to deal with the challenges of software engineering? Specifically working with distributed systems. Alright, enough of this and lets actually look at some code.</p>
+<h3 id="quick-look-at-syntax">Quick look at syntax</h3>
+<p>Go was designed with syntax<a target="_blank" href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> simplicity and readability in mind. We wanted a feeling of familiarity to existing languages declaration syntax is closer to Pascal’s than to C’s. The declared name appears before the type and there are more keywords: Here we declare a function named ‘fn’ , and a struct of custom type <code>T</code></p>
+<pre class="brush: golang;">var fn func([]int) int
+type T struct { a, b int }</pre>
+<p>Here’s the same declarations in C.</p>
+<pre class="brush: c">int (*fn)(int[]);
+struct T { int a, b; }</pre>
+<p>Declarations introduced by keyword are easier to parse both for people and for computers, and having the type syntax not be the expression syntax as it is in C has a significant effect on parsing: it adds grammar but eliminates ambiguity. But there is a nice side effect, too: for initializing.</p>
+<p>Here’s an example of explicit vs derived initialization</p>
+<pre class="brush: golang;">
+// NewT is a method on type T above that returns a newly create T struct
+// a method is just a function with a special receiver, in this case type T.
+func (t T) NewT(a,b int)(T){}
+
+var myStruct T = t.newT(val1,val2) //explicit - assuming type T has this method associated with it.This isn&#39;t some built in constructor
+mystruct := t.newT(val1,val2)      //derived</pre>
+<p>To me, Go feels like a dynamically typed language but I’m still getting the benefits and speed of a statically typed, compiled language.</p>
+<h3 id="interfaces">Interfaces</h3>
+<p>Interfaces in Go are one of, if not the best feature of the language<a target="_blank" href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>. Go’s interfaces let you use <a target="_blank" href="https://en.wikipedia.org/wiki/Duck_typing">duck typing</a> like you would in a purely dynamic language like Python but still have the compiler catch obvious mistakes<a target="_blank" href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>. Go encourages composition over inheritance<a target="_blank" href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>, using simple, often one-method interfaces to define trivial behaviors that serve as clean, comprehensible boundaries between components.</p>
+<p>In the next section we’ll see concrete examples of using interfaces and how they relate to building our first server.</p>
+<h3 id="building-an-http-server-using-gos-standard-library.">Building an HTTP server using Go’s standard Library.</h3>
+<p>Go’s true power comes from the fact that the language is small and the standard library is large. It enables newcomers to ramp up quickly. Why? It limits the number of ways you can do something and has a very opinionated view of the world at the compiler level. The goal of this section is to not only build our Go http server, but understand the structs and abstractions involved, and how they fit together. We will build off these ideas as we evolve our server. Lets dig into the <code>net/http</code> package.</p>
+<p>The first piece we’ll need is the <code>Handler</code> interface.</p>
+<pre class="brush: golang;">
+type Handler interface {
+    ServeHTTP(ResponseWriter, *Request)
+}</pre>
+<p><code>Handler</code> is an interface that contains a single method <code>ServeHTTP</code>. <code>ServeHTTP</code> takes 2 values: 1. <code>ResponseWriter</code> which is an interface is used by an HTTP handler to construct an HTTP response. 2. A pointer to an <code>http.Request</code> struct.</p>
+<p>We’ll look at the Request and Response objects as they’re represented in Go. With some basics covered, more specifically Interfaces, we are ready to build an <code>HTTP.Handler</code>.</p>
+<pre class="brush: golang;">//main.go
+
+type MyFirstHandler struct{}
+
+func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    fmt.Println(&quot;MyFirstHandler type implements http.Handler&quot;)
+}
+
+func main() {
+    var handler MyFirstHandler
+
+    // ListenAndServe listens on the TCP network address addr and then calls
+    // Serve with handler to handle requests on incoming connections.
+    // Accepted connections are configured to enable TCP keep-alives.
+    //
+    // The handler is typically nil, in which case the DefaultServeMux is used.
+    //
+    // ListenAndServe always returns a non-nil error.
+    err := http.ListenAndServe(&quot;:8833&quot;,handler)
+    if err != nil {
+        fmt.Println(&quot;error while attempting to listen for incoming connections&quot;, err)
+    }
+}</pre>
+<p>Lets break this down a bit. <code>ListenAndServe</code> tells our app to listen on a specific port/network address that we provide. The second parameter is our handler. If you read the comment above you’ll see that http library provides us with a default handler - <code>DefaultServeMux</code> if we do not provide our own. What is a ServeMux? From the standard library comments:</p>
+<pre class="brush:golang;">// ServeMux is an HTTP request multiplexer.
+// It matches the URL of each incoming request against a list of registered
+// patterns and calls the handler for the pattern that
+// most closely matches the URL.</pre>
+<ul> <li>If you’ve ever used an http framework in another language that leveraged an MVC-pattern, handlers are similar to controllers. They perform your application logic and write response information (headers, body, etc).</li> <li>servemux is also referred to as a router. Primary function of a router is to store a mapping between url paths and their handlers that we define. Router features, and implementation will vary, but they all implement <code>ServeHTTP</code> interface.</li> </ul>
+<p>Lets start to improve our server with some small changes. In the code snippet below:</p>
+<ul> <li>We’ve edited the handler to return the current time instead of printing a static string.</li> <li>Declaring a serveMux aka router in our main function.</li> <li>Register our handler to a specific route <code>/use-handler</code></li> </ul>
+<pre class="brush: golang;">//main.go
+func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    tm := time.Now().Format(time.RFC3339)
+    w.Write([]byte(&quot;The time is: &quot; + tm))
+}
+
+func main() {
+    var firstHandler MyFirstHandler
+
+    // declare our serveMux in main
+    router :=http.NewServeMux()
+    // register handler we defined - it now responds to any request to path use-handler
+    router.Handle(&quot;/use-handler&quot;, firstHandler)
+
+    err := http.ListenAndServe(&quot;:8833&quot;, router)
+    if err != nil {
+        fmt.Println(&quot;error while attempting to listen for incoming connections&quot;, err)
+    }
+}</pre>
+<p>Now lets swap out the default router with a library from outside the standard library. This new router gives us a convenient method for setting named path parameters and helper function for accessing them. Go’s default ServeMux is limited to static routes and does not support parameters in the route pattern. I may be guilty of deferring to use gorilla out of familiarity, but I like the features it provides and won’t optimize this until it becomes an issue for me. If you’re curious to learn more about <a target="_blank" href="https://github.com/julienschmidt/go-http-routing-benchmark">different routers in Go here’s a nice writeup</a> on the state of routers at the time and some benchmark numbers.</p>
+<p>Here’s what our code looks like now:</p>
+<pre class="brush: golang;">//main.go
+...
+
+type MyFirstHandler struct{}
+
+func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    //get URL path param name from the request
+    name := mux.Vars(r)[&quot;name&quot;]
+    tm := time.Now().Format(time.RFC3339)
+    w.Write([]byte(fmt.Sprintf(&quot;Hello %s, the time is: %s\n&quot;, name, tm)))
+}
+</pre>
+<p>For the first time we are importing a package outside the standard library. We’re now using the <a target="_blank" href="https://github.com/gorilla/mux#readme">gorilla/mux</a>. We also use the <code>mux.Vars</code> helper function which takes the route params and puts them in a map for us to access.</p>
+<p>Here’s the updated route:</p>
+<pre class="brush: golang;">//main.go
+...
+    router.Handle(&quot;/use-handler/{name:[a-zA-Z]+}&quot;, firstHandler).Methods(&quot;GET&quot;)
+</pre>
+<p>We set the allowable http verb for this route with <code>.METHODS("GET")</code>,set expected route param value, and naming it name. I think we’re ready to turn this into a real service.</p>
+<h2 id="intro-to-go-kit">Intro to Go kit</h2>
+<p>In this section, we’ll talk about Go-kit, which I’ll refer to as kit for the rest of this post. Quick note: Having a solid understanding of HTTP<a target="_blank" href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a> in general will help with the digestion of this content. At a minimum knowing a little bit about what you can expect from request/response objects<a target="_blank" href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a>.</p>
+<h3 id="what-is-kit-and-why-should-i-use-it">What is  <em>kit</em> and why should I use it?</h3>
+<p>In their own words<a target="_blank" href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a> : <blockquote> kit is a collection of Go (golang) packages (libraries) that help you build robust, reliable, maintainable microservices.</blockquote><blockquote>You should use kit if you know you want to adopt the microservices pattern in your organization. Go kit will help you structure and build out your services, avoid common pitfalls, and write code that grows with grace. Go kit de-risks both Go and microservices by providing mature patterns and idioms, written and maintained by a large group of experienced contributors, and validated in production environments.</blockquote></p><p>We won’t dive into all things kit here, but lets take a look at how kit gives us a template for structuring our service logic.</p>
+<figure>
+<img src="https://chariotsolutions.com/wp-content/uploads/2022/03/req-path.png" title="Request Path" alt="Path of a request" />
+<figcaption aria-hidden="true">Path of a request</figcaption>
+</figure>
+<p>After taking a look at this diagram there are some similar pieces to our original simple server implementation. We should be familiar with everything except what is contained inside the purple area(inside handler). It’s not that it couldn’t have existed, but now we have a clearer picture for organizing our server logic. The major benefit of <em>kit</em> is that it provides some nice abstractions that assist in structuring your service. They group a service into these 3 layers:</p>
+<ol type="1">
+<li>Transport layer</li>
+<li>Endpoint layer</li>
+<li>Service layer</li>
+</ol>
+<h4 id="transport-layer">Transport layer</h4>
+<p>Transport layer comes from the OSI model<a target="_blank" href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a>. The transport layer as it relates to OSI is defined as <code>means of transferring variable-length data sequences from a source to a destination host, while maintaining the quality of service functions.</code> HTTP isn’t actually a transport layer, but our HTTP.server relies on TCP which falls in the transport layer.</p> <p>Here you have the flexibility of implementing one or more transports(example HTTP/gRPC). In our example service we are using HTTP encoding a json response. The following code is defined in <code>rawkit/server/main.go</code> in our project and we’ll look at that first.</p>
+<p>Our example code won’t explore the benefits of multiple transports, but work only with HTTP &amp; JSON.</p>
+<pre class="brush: golang;">// using-kit/server/main.go
+
+svc := rawkit.NewThingSvc(logger)
+
+getThingHandler := httptransport.NewServer(
+    loggingMiddleware(log.With(logger, &quot;method&quot;, &quot;get-a-thing&quot;))(rawkit.GetAThingEP(svc)),
+    rawkit.DecodeGetThingRequest,
+    httptransport.EncodeJSONResponse,
+)
+
+r := mux.NewRouter()
+r.Handle(&quot;/things/{id:[a-zA-Z]+}&quot;, getThingHandler).Methods(&quot;GET&quot;)
+
+http.ListenAndServe(DEFAULT_PORT, r)</pre>
+<p>Breaking down our new main function:</p>
+<ol type="1"> <li>Again we are using the same <a href="https://github.com/gorilla/mux">gorilla/mux setup for our router</a>.</li> <li><code>httptransport.NewServer</code> is from the package <code>github.com/go-kit/kit/transport/http</code> and it creates a <code>kit.Server</code> that wraps an endpoint, a decoder for the request. The <code>kit/transport/http.Server</code>code&gt; type implements http.Handler.</li> </ol>
+<p>Peeling this back another layer and look at the Endpoint function, decoders, and encoders that live inside this kit defined type, server, that acts as a wrapper.</p>
+<h4 id="endpoint-layer">Endpoint layer</h4>
+<p>An <code>Endpoint</code> is the fundamental building block of servers and clients. It represents a single RPC method. Endpoint type is a function that takes in an interface request and returns an interface response. The decoder/encoder and endpoint func is where your safety and anti-fragile logic will live. Looking back to our simple server example we interacted with <code>http.Request</code> type and we will again here. The first stop on the request path is our decoder.</p>
+<pre class="brush: golang;">//using-kit/service/endpoints.go
+
+func DecodeGetThingRequest(_ context.Context, r *http.Request) (interface{}, error) {
+    var req GetThingRequest
+    req.ID = mux.Vars(r)[&quot;id&quot;]
+    if len(req.ID) == 0 {
+        return nil, errors.New(&quot;missing ID route param&quot;)
+    }
+    return req, nil
+}</pre>
+<p>What should be inside a decoder function: - Here we interact with an <code>http.Request</code> struct just like our simple server handlers. The goal is to convert this into a different request struct that our underlying service(s) expect. - This abstracts away the http transport bit and is a point where we can switch easily for something else if needed. - Here we interact with http.Request object. Taking it and converting the request into a struct that our service will interact with going forward. - We also validate the request. Deserializing the payload body(if it was a post/put request). In this case it’s a get request. We grab the route parameter ‘id’ which is a string, and we confirm that it’s not an empty string.</p>
+<p>This is a good place for any type of request parameter validation and conversion to types we expect to work with inside the service.</p>
+<h4 id="service-layer">Service layer</h4>
+<p>The service layer is where all of your business logic should live. Business logic should have no knowledge of endpoint- or especially transport-domain concepts. A service typically groups together multiple endpoints. Kit uses <a target="_blank" href="https://en.wikipedia.org/wiki/Decorator_pattern">middleware(via the decorator pattern)</a> to break logic into different components. Our service will take advantage of this pattern to implement logging. Our example service interface looks like:</p>
+<pre class="brush: golang;">type Service interface {
+    GetAThing(context.Context, string) (*Thing, error)
+    GetAllThings(context.Context) ([]Thing, error)
+    AddThing(ctx context.Context, thing *Thing) error
+}</pre>
+<p>To implement these methods for this example we implement a <code>ThingService</code> which retrieves arbitrary struct type called Thing from a map. This will satisfy the interface we defined.</p>
+<pre class="brush: golang;">//using-kit/service/service.go
+package service
+
+import &quot;errors&quot;
+
+type Thing struct {
+    ID        string
+    Available bool
+}
+
+type ThingStore struct {
+    things map[string]*Thing
+}
+
+func SeedThings() *ThingStore {
+    tings := map[string]*Thing{
+        &quot;abd&quot;: {
+            ID:        &quot;abd&quot;,
+            Available: true,
+    },
+        &quot;eek&quot;: {
+            ID:        &quot;eek&quot;,
+            Available: true,
+        },
+        &quot;yik&quot;: {
+            ID:        &quot;yik&quot;,
+            Available: true,
+        },
+        &quot;yak&quot;: {
+            ID:        &quot;yak&quot;,
+            Available: true,
+            },
+        }
+    return &amp;ThingStore{tings}
+}
+
+func (ts *ThingStore) Save(t *Thing) error {
+    ts.things[t.ID] = t
+    return nil
+}
+
+func (ts *ThingStore) Find(id string) (*Thing, error) {
+    if val, ok := ts.things[id]; ok {
+        return val, nil
+    }
+    return nil, errors.New(&quot;id not found&quot;)
+}
+
+func (ts *ThingStore) GetAllThings() ([]Thing, error) {
+    tls := make([]Thing, 0, len(ts.things))
+    for _, v := range ts.things {
+     tls = append(tls, *v)
+    }
+    return tls, nil
+}</pre>
+<p>And our logging middleware:</p>
+<pre class="brush: golang;">//using-kit/middleware.go
+
+...
+
+type Middleware func(Service) Service
+
+func LoggingMiddleware(logger log.Logger) Middleware {
+    return func(next Service) Service {
+        return &amp;loggingMiddleware{
+            next:   next,
+            logger: logger,
+        }
+    }
+}
+
+type loggingMiddleware struct {
+    next   Service
+    logger log.Logger
+}
+
+func (mw loggingMiddleware) GetAllThings(ctx context.Context) (ts []Thing, err error) {
+    defer func(begin time.Time) {
+        mw.logger.Log(&quot;method&quot;, &quot;GetAllThings&quot;, &quot;took&quot;, time.Since(begin), &quot;err&quot;, err)
+    }(time.Now())
+        return mw.next.GetAllThings(ctx)
+}
+
+func (mw loggingMiddleware) AddThing(_ context.Context, _ *Thing) error {
+    panic(&quot;implement me&quot;)
+}
+
+func (mw loggingMiddleware) GetAThing(ctx context.Context, tid string) (t *Thing, err error) {
+    defer func(begin time.Time) {
+        mw.logger.Log(&quot;method&quot;, &quot;GetAThing&quot;, &quot;id&quot;, tid, &quot;took&quot;, time.Since(begin), &quot;err&quot;, err)
+    }(time.Now())
+        return mw.next.GetAThing(ctx, tid)
+    }
+</pre>
+<p>Lets quickly recap each layer and refactor this example into something that more closely represents an actual production service. Our project structure will end up looking something like this:</p>
+<pre class="brush: golang;">.
+├── README.md
+├── go.mod
+├── go.sum
+├── main.go
+└── service
+├── client.go
+├── endpoints.go
+├── middleware.go
+├── service.go
+├── service_test.go
+├── store.go
+└── transport.go</pre>
+<p>Lets look at this again by starting with our main function. We should try and think about how this builds a mental model for adding functionality to our service. We the service just as we did before. We instantiate it and chain the logging middleware to our <code>ThingService</code>. Now to cleanup the main function we’ve moved our <code>kit.Server</code> logic to the <code>transport.go</code> file.</p>
+<pre class="brush: golang;">//using-kit/main.go
+...
+const DEFAULT_PORT = &quot;:8008&quot;
+
+func main() {
+    // Create a single logger, which we&#39;ll use and give to other components.
+    var l log.Logger
+    {
+        l = log.NewLogfmtLogger(os.Stderr)
+        l = log.With(l, &quot;ts&quot;, log.DefaultTimestampUTC)
+        l = log.With(l, &quot;caller&quot;, log.DefaultCaller)
+    }
+
+    svc := service.NewThingSvc()
+    svc = service.LoggingMiddleware(l)(svc)
+    r := service.BuildHTTPHandler(svc, log.With(l, &quot;component&quot;, &quot;HTTP&quot;))
+
+...
+</pre>
+<p>In this layer we want to include anything that interacts with our transport type - in this case HTTP. More concretely</p>
+<ul>
+<li>Building our router, which implements our custom
+<code>http.handler</code>.</li>
+<li>our decoders and encoders which creates a contract between the
+client and server for request/response types.</li>
+</ul>
+<pre class="brush: golang;">//using-kit/transport.go
+
+
+func BuildHTTPHandler(svc Service, l log.Logger) http.Handler {
+    r := mux.NewRouter()
+    eps := MakeServerEndpoints(svc)
+    options := []httptransport.ServerOption{
+        httptransport.ServerErrorHandler(transport.NewLogErrorHandler(l)),
+        httptransport.ServerErrorEncoder(encodeError),
+}
+
+r.NotFoundHandler = http.NotFoundHandler()
+r.MethodNotAllowedHandler = http.NotFoundHandler()
+
+r.Methods(&quot;GET&quot;).Path(&quot;/thing/{id:[a-zA-Z]+}&quot;).Handler(httptransport.NewServer(
+    eps.GetThingEndpoint,
+    decodeGetThingRequest,
+    encodeResponse,
+    options...,
+))
+
+r.Methods(&quot;GET&quot;).Path(&quot;/things&quot;).Handler(httptransport.NewServer(
+    eps.GetAllThingsEndpoint,
+    decodeGetAllThings,
+    encodeResponse,
+    options...,
+    ))
+
+    return r
+}
+
+func decodeGetThingRequest(_ context.Context, r *http.Request) (interface{}, error) {
+    var req getThingRequest
+    req.ID = mux.Vars(r)[&quot;id&quot;]
+    if len(req.ID) == 0 {
+        return nil, ErrNoID
+    }
+    return req, nil
+}
+
+func decodeGetAllThings(_ context.Context, r *http.Request) (interface{}, error) {
+    return r, nil
+}
+
+func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+    w.Header().Set(&quot;Content-Type&quot;, &quot;application/json; charset=utf-8&quot;)
+    return json.NewEncoder(w).Encode(response)
+}
+
+...</pre>
+<p>Another change made for convenience was to wrap all <code>kit.Endpoint</code>s we’d like to expose in an <code>Endpoints</code> object. We initialize each endpoint by calling <code>MakeServerEndpoints</code> in <code>transport.go</code>. When we think endpoints we should expect to include: - Endpoints themselves - Our request and response struct types (remember this is running after the decoder. The decoder should initialize our request type for the endpoint to pass to our service). - Any business logic pertaining to the validation of a request.(i.e. parameters fall within acceptable ranges/request has provided all required fields, etc.) - can also link together multiple calls to underlying services, whatever is required to build up the response.</p>
+<pre class="brush: golang;">//using-kit/endpoints.go
+
+...
+
+type Endpoints struct {
+    GetThingEndpoint     endpoint.Endpoint
+    GetAllThingsEndpoint endpoint.Endpoint
+}
+
+func MakeServerEndpoints(svc Service) Endpoints {
+    return Endpoints{
+    GetThingEndpoint:     GetAThingEndpoint(svc),
+    GetAllThingsEndpoint: GetAllThings(svc),
+    }
+}
+
+func GetAThingEndpoint(svc Service) endpoint.Endpoint {
+    return func(ctx context.Context, request interface{}) (interface{}, error) {
+    req := request.(getThingRequest)
+    v, err := svc.GetAThing(ctx, req.ID)
+    if err != nil &amp;&amp; v == nil {
+        return getThingResponse{}, errors.New(&quot;requested thing doesn&#39;t exist\n&quot;)
+    }
+    return getThingResponse{*v, &quot;&quot;}, nil
+    }
+}
+
+func GetAllThings(svc Service) endpoint.Endpoint {
+    return func(ctx context.Context, request interface{}) (interface{}, error) {
+        return svc.GetAllThings(ctx)
+    }
+}
+
+type getThingRequest struct {
+    ID string `json:&quot;id&quot;`
+}
+
+type getThingResponse struct {
+    Thing Thing  `json:&quot;thing&quot;`
+    Err   string `json:&quot;err,omitempty&quot;` // errors don&#39;t JSON-marshal, so we use a string
+}</pre>
+<p>Hopefully, this has given you a blueprint for building your services using Go with or without kit. Sticking to this pattern will enable you and your team to focus on business logic and building features. The service is self-policing, enforcing best practices via separation of concerns. I’m confident that using the model that kit provides and core tooling around Go, anyone can become a proficient contributor quickly(in comparison to other languages/frameworks). All of the <a target="_blank" href="https://github.com/jo824/using-kit">example code for this post can be found here</a>.</p>
+<p>We’ll cover building a pipeline to support continuous deployment in future posts and ways to deploy Go services to different AWS services. And adding observability metrics to the service.</p>
+<section class="footnotes footnotes-end-of-document"
+role="doc-endnotes">
+<hr />
+    <p> <li id="fn1" role="doc-endnote"><a target="_blank" href="https://go.dev/blog/declaration-syntax">More on syntax in Go</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></li> <li id="fn2" role="doc-endnote"><a target="_blank" href="https://research.swtch.com/interfaces">History of Interface in Go</a><a target="_blank" href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></li> <li id="fn3" role="doc-endnote"><a target="_blank" href="https://go.dev/doc/faq#types">more on types</a> Types section from Go dev doc FAQ<a target="_blank" href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></li> <li id="fn4" role="doc-endnote"><a target="_blank" href="https://go.dev/talks/2012/splash.article#TOC_15.">more on composition over inheritance</a> From 2012 presentation on Go, by Rob Pike<a target="_blank" href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></li> <li id="fn5" role="doc-endnote"><a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview">http overview</a> Mozilla documentation of HTTP protocol.<a target="_blank" href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></li> <li id="fn6" role="doc-endnote"><a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages">http request/response object info</a> Mozilla documentation of HTTP messages.<a target="_blank" href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></li> <li id="fn7" role="doc-endnote"><a target="_blank" href="https://gokit.io/faq/#what-is-go-kit">kit-faq</a> Complete kit FAQ<a target="_blank" href="#fnref7" class="footnote-back" role="doc-backlink">↩︎</a></li> <li id="fn8" role="doc-endnote"><a target="_blank" href="https://en.wikipedia.org/wiki/OSI_model#Layer_4:_Transport_layer">OSI model</a><a target="_blank" href="#fnref8" class="footnote-back" role="doc-backlink">↩︎</a></li> </ol> </p>
+</section>

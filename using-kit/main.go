@@ -1,14 +1,12 @@
 package main
 
 import (
-	"context"
-	"github.com/go-kit/kit/endpoint"
+	"fmt"
 	"github.com/go-kit/kit/log"
-	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"net/http"
 	"os"
-	"time"
+	"os/signal"
+	"syscall"
 	"using-kit/using-kit/service"
 )
 
@@ -16,45 +14,31 @@ const DEFAULT_PORT = ":8008"
 
 func main() {
 	// Create a single logger, which we'll use and give to other components.
-	var logger log.Logger
+	var l log.Logger
 	{
-		logger = log.NewLogfmtLogger(os.Stderr)
-		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-		logger = log.With(logger, "caller", log.DefaultCaller)
+		l = log.NewLogfmtLogger(os.Stderr)
+		l = log.With(l, "ts", log.DefaultTimestampUTC)
+		l = log.With(l, "caller", log.DefaultCaller)
 	}
 
-	svc := service.NewThingSvc(logger)
+	svc := service.NewThingSvc()
+	svc = service.LoggingMiddleware(l)(svc)
+	r := service.BuildHTTPHandler(svc, log.With(l, "component", "HTTP"))
 
-	getThingHandler := httptransport.NewServer(
-		loggingMiddleware(log.With(logger, "method", "get-a-thing"))(service.GetAThingEndpoint(svc)),
-		service.DecodeGetThingRequest,
-		httptransport.EncodeJSONResponse,
-	)
+	//Here we are taking advantage of go routines and channels
+	//so that when the server shuts down it can do it gracefully
+	//logging any errors or taking advantage of exit functions provided by the server impl
+	errs := make(chan error)
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errs <- fmt.Errorf("%s", <-c)
+	}()
 
-	getAllThingsHandler := httptransport.NewServer(
-		loggingMiddleware(log.With(logger, "method", "get-aall"))(service.GetAllThings(svc)),
-		service.DecodeGetAllThings,
-		httptransport.EncodeJSONResponse,
-	)
+	go func() {
+		l.Log("transport", "HTTP", "addr", DEFAULT_PORT)
+		errs <- http.ListenAndServe(DEFAULT_PORT, r)
+	}()
 
-	r := mux.NewRouter()
-	r.NotFoundHandler = http.NotFoundHandler()
-	r.MethodNotAllowedHandler = http.NotFoundHandler()
-	r.Handle("/things", getAllThingsHandler).Methods("GET")
-	r.Handle("/thing/{id:[a-zA-Z]+}", getThingHandler).Methods("GET")
-
-	_ = logger.Log("starting server on port:", DEFAULT_PORT)
-	_ = http.ListenAndServe(DEFAULT_PORT, r)
-}
-
-func loggingMiddleware(logger log.Logger) endpoint.Middleware {
-	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-
-			defer func(begin time.Time) {
-				logger.Log("error", err, "took", time.Since(begin))
-			}(time.Now())
-			return next(ctx, request)
-		}
-	}
+	l.Log("exit", <-errs)
 }

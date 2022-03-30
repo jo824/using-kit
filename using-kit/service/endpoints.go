@@ -4,9 +4,19 @@ import (
 	"context"
 	"errors"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/gorilla/mux"
-	"net/http"
 )
+
+type Endpoints struct {
+	GetThingEndpoint     endpoint.Endpoint
+	GetAllThingsEndpoint endpoint.Endpoint
+}
+
+func MakeServerEndpoints(svc Service) Endpoints {
+	return Endpoints{
+		GetThingEndpoint:     GetAThingEndpoint(svc),
+		GetAllThingsEndpoint: GetAllThings(svc),
+	}
+}
 
 func GetAThingEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
@@ -19,23 +29,10 @@ func GetAThingEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-func DecodeGetThingRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var req getThingRequest
-	req.ID = mux.Vars(r)["id"]
-	if len(req.ID) == 0 {
-		return nil, errors.New("missing ID route param")
-	}
-	return req, nil
-}
-
 func GetAllThings(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		return svc.GetAllThings(ctx)
 	}
-}
-
-func DecodeGetAllThings(_ context.Context, r *http.Request) (interface{}, error) {
-	return r, nil
 }
 
 type getThingRequest struct {
@@ -47,6 +44,6 @@ type getThingResponse struct {
 	Err   string `json:"err,omitempty"` // errors don't JSON-marshal, so we use a string
 }
 
-type AllThingsResponse struct {
+type allThingsResponse struct {
 	Ts []Thing `json:"v"`
 }

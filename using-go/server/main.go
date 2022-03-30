@@ -36,7 +36,6 @@ func main() {
 	// The handler is typically nil, in which case the DefaultServeMux is used.
 	//
 	// ListenAndServe always returns a non-nil error.
-	//ListenAndServer func signature -- ListenAndServe(addr string, handler Handler) error
 	err := http.ListenAndServe(":8833", router)
 	if err != nil {
 		fmt.Println("error while attempting to listen for incoming connections", err)

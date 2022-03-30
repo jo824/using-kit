@@ -31,7 +31,7 @@ type T struct { a, b int }
 ```
 
 Here's the same declarations in C.
-```go
+```c
 
     int (*fn)(int[]);
     struct T { int a, b; }
@@ -162,36 +162,30 @@ on the state of routers at the time and some benchmark numbers.
 
 Here's what our code looks like now:
 
-```
+```go
 //main.go
+...
 
-import (
-"fmt"
-"net/http"
-"time"
+    type MyFirstHandler struct{}
 
-"github.com/gorilla/mux"
-)
-
-
-type MyFirstHandler struct{}
-
-func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-    //get URL path param name from the request
-    name := mux.Vars(r)["name"]
-    tm := time.Now().Format(time.RFC3339)
-    w.Write([]byte(fmt.Sprintf("Hello %s, the time is: %s\n", name, tm)))
-}
+    func (g MyFirstHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+        //get URL path param name from the request
+        name := mux.Vars(r)["name"]
+        tm := time.Now().Format(time.RFC3339)
+        w.Write([]byte(fmt.Sprintf("Hello %s, the time is: %s\n", name, tm)))
+    }
 ```
 
 For the first time we are importing a package outside the standard library. We're now using the [gorilla/mux](https://github.com/gorilla/mux#readme).
 We also use the `mux.Vars`  helper function which takes the route params and puts them in a map for us to access.
 
 Here's the updated route:
-```
+```go
+//main.go
+...
+
 router.Handle("/use-handler/{name:[a-zA-Z]+}", firstHandler).Methods("GET")
 
-//main.go
 ```
 We set the allowable http verb for this route with `.METHODS("GET")`,set expected route param value, and naming it name.  I think we're ready to turn this into a real service.
 

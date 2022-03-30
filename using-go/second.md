@@ -5,11 +5,11 @@ This will be the first article in a series exploring building systems with Go. I
 - origins of Go
 - notes on Go syntax and Interfaces
 - the `net/http` package from the standard library
-- what features we expect in a production ready microservice #TODO
 - a few iterations/different approaches to building a server
 - a standard library approach
 - swapping out the default serveMux (router)
 - Go kit approach to organizing our microservice
+- what features we expect in a production ready microservice #TODO
 
 By the end it is my hope that you will have enough information to accurately assess using Go in your own work. Also, enough knowledge of Go to confidently build your own service from scratch.
 
@@ -250,7 +250,7 @@ Breaking down our new main function:
 2. `httptransport.NewServer` is from the package <code>github.com/go-kit/kit/transport/http</code> and it creates a `kit.Server`
                 that wraps an endpoint, a decoder for the request. The <code>kit/transport/http.Server</code>code> type implements http.Handler.
 
-Lets peel this back another layer and look at the Endpoint function, decoders, and encoders that live inside this kit defined type, server, that acts as a wrapper.
+Peeling this back another layer and look at the Endpoint function, decoders, and encoders that live inside this kit defined type, server, that acts as a wrapper.
 
 An `Endpoint` is the fundamental building block of servers and clients. It represents a single RPC method.
 Endpoint type is a function that takes in an interface request and returns an interface response. The decoder/encoder

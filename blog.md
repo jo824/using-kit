@@ -12,7 +12,7 @@ This will be the first article in a series exploring building systems with Go. I
 
 By the end it is my hope that you will have enough information to accurately assess using Go in your own work. Also, enough knowledge of Go to confidently build your own service from scratch.
 
-## Origins of Go.
+## Origins of Go
 Picking the right tool for the job is important. Go is the language of the cloud, that's building the modern cloud
 (i.e. docker, kubernetes). Before Go it didn't seem like any one language existed that checked all the boxes
 required for current day development challenges. Why can't we have efficient compilation,
@@ -547,7 +547,7 @@ When we think endpoints we should expect to include:
 ```
 
 Hopefully, this has given you a blueprint for building your services using Go with or without kit. Sticking to this pattern will enable you and your team to focus on business logic and building features. The service is self-policing, enforcing best practices via separation of concerns. I'm confident that using the model that kit provides and core tooling around Go, anyone can become a proficient contributor quickly(in comparison to other languages/frameworks).
-All of the [example code for this post can be found here](https://github.com/jo824/using-kit)
+All of the [example code for this post can be found here](https://github.com/jo824/using-kit).
 
 We'll cover building a pipeline to support continuous deployment in future posts and ways to deploy Go services to different AWS services. And adding observability metrics to the service.
 

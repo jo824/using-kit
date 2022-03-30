@@ -22,7 +22,7 @@ func main() {
 	router := mux.NewRouter()
 	// register handler we defined - it now responds to any request to path use-handler
 	router.Handle("/use-handler/{name:[a-zA-Z]+}", firstHandler).Methods("GET")
-	router.Handle("/heath-check",  http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.Handle("/health-check",  http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte("OK"))
@@ -36,7 +36,7 @@ func main() {
 	// The handler is typically nil, in which case the DefaultServeMux is used.
 	//
 	// ListenAndServe always returns a non-nil error.
-	err := http.ListenAndServe(":8833", router)
+	err := http.ListenAndServe(":8008", router)
 	if err != nil {
 		fmt.Println("error while attempting to listen for incoming connections", err)
 	}

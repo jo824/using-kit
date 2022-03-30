@@ -79,12 +79,12 @@ ServeHTTP(ResponseWriter, *Request)
 }
 ```
 
-`Handler` is an interface that contains a single method `ServeHTTP`. `ServeHTTP` takes 2 values
+`Handler` is an interface that contains a single method `ServeHTTP`. `ServeHTTP` takes 2 values:
 1. `ResponseWriter` which is an interface is used by an HTTP handler to construct an HTTP response.
 2. A pointer to an `http.Request` struct.
 
-We'll look at the Request and Response objects in more detail in a bit. We'll work each of them often.
-Now lets build a handler knowing what we know about Go types and interfaces.
+We'll look at the Request and Response objects as they're represented in Go. With some basics covered, more specifically Interfaces, we are ready to build an
+<code>HTTP.Handler</code>.
 
 ```go
 //main.go
@@ -99,14 +99,13 @@ func main() {
     var handler MyFirstHandler
 
 
-// ListenAndServe listens on the TCP network address addr and then calls
-// Serve with handler to handle requests on incoming connections.
-// Accepted connections are configured to enable TCP keep-alives.
-//
-// The handler is typically nil, in which case the DefaultServeMux is used.
-//
-// ListenAndServe always returns a non-nil error.
-//ListenAndServer func signature -- ListenAndServe(addr string, handler Handler) error
+    // ListenAndServe listens on the TCP network address addr and then calls
+    // Serve with handler to handle requests on incoming connections.
+    // Accepted connections are configured to enable TCP keep-alives.
+    //
+    // The handler is typically nil, in which case the DefaultServeMux is used.
+    //
+    // ListenAndServe always returns a non-nil error.
     err := http.ListenAndServe(":8833",handler)
     if err != nil {
         fmt.Println("error while attempting to listen for incoming connections", err)
@@ -114,7 +113,7 @@ func main() {
 }
 ```
 
-Lets break this down a bit. `ListenAndServer` tells our app to listen on a specific port/network address that we provide.
+Lets break this down a bit. `ListenAndServe` tells our app to listen on a specific port/network address that we provide.
 The second parameter is our handler. If you read the comment above you'll see that http library provides us with a default  handler - `DefaultServeMux` if we do not provide our own. What is a ServeMux?
 From the standard library comments:
 
@@ -124,13 +123,14 @@ From the standard library comments:
 // patterns and calls the handler for the pattern that
 // most closely matches the URL.
 ```
-Still ServeMux? Handler?
+
 * If you've ever used an http framework in another language that leveraged an MVC-pattern, handlers are similar to controllers. They perform your application logic and write response information (headers, body, etc).
-* servemux is also referred to as a router. There are additional [routers available]((https://benhoyt.com/writings/go-routing/) ) to you outside of the standard library. Primary function of a router is to store a mapping between url paths and their handlers that we define. Router features, and implementation will vary, but they all implement `ServeHTTP` interface.
+* servemux is also referred to as a router. Primary function of a router is to store a mapping between url paths and their handlers that we define. Router features, and implementation will vary, but they all implement `ServeHTTP` interface.
 
-[benchmarks for routers](https://github.com/julienschmidt/go-http-routing-benchmark)
-
-Lets reshuffle our example a bit.
+Lets start to improve our server with some small changes. In the code snippet below:
+    * We've edited the handler to return the current time instead of printing a static string.
+    * Declaring a serveMux aka router in our main function.
+    * Register our handler to a specific route `/use-handler`
 
 ```go
 //main.go
@@ -153,16 +153,13 @@ func main() {
     }
 }
 ```
-What's changed?
 
-* We've edited the handler to return the current time instead of printing a static string.
-* Declaring a serveMux aka router in our main function.
-* Register our handler to a specific route `/use-handler`
+Now lets swap out the default router with a library from outside the standard library. This new router gives us a convenient method for setting named path parameters and helper function for accessing them.
+Go's default ServeMux is limited to static routes and does not support parameters in the route pattern.
+I may be guilty of deferring to use gorilla out of familiarity, but I like the features it provides and won't optimize this until it becomes an issue for me. If you're curious to learn more about [different routers in Go here's a nice writeup](https://github.com/julienschmidt/go-http-routing-benchmark)
+on the state of routers at the time and some benchmark numbers.
 
-Now lets really start to build this thing up. We mentioned earlier that there are a bunch of routers
-available to us and now we're going to use one. This new router gives us a convenient method for setting named path parameters and helper function for accessing them.
-
-Here's what it looks like:
+Here's what our code looks like now:
 
 ```
 //main.go
@@ -199,16 +196,19 @@ We set the allowable http verb for this route with `.METHODS("GET")`,set expecte
 
 
 ## Intro to Go kit
-In this section, we'll talk about Go-kit, which I'll refer to as kit for the rest of this post.
+In this section, we'll talk about Go-kit, which I'll refer to as kit for the rest of this post. Quick note: Having a solid understanding of [HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview) in general will help with the digestion of this content. At a minimum knowing a little bit about what you can expect
+from [request/response objects](https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages).
+
 ### What is *kit* and why should I use it?
 In their own words:
 > kit is a collection of Go (golang) packages (libraries) that help you build robust, reliable, maintainable microservices.
 >You should use kit if you know you want to adopt the microservices pattern in your organization. Go kit will help you structure and build out your services, avoid common pitfalls, and write code that grows with grace. Go kit de-risks both Go and microservices by providing mature patterns and idioms, written and maintained by a large group of experienced contributors, and validated in production environments.
+
 We won't dive into all things kit here, but lets take a look at how kit gives us a template for structuring our service logic.
 
 ![Path of a request](req-path.png  "Request Path")
 
-After taking a look at this diagram there are some similar pieces to our original simple server implementation. We should be familiar with everything but what is contained inside the purple area(inside handler). It's not that it couldn't exist, but now we have a clear idea of organizing our server logic.
+After taking a look at this diagram there are some similar pieces to our original simple server implementation. We should be familiar with everything except what is contained inside the purple area(inside handler). It's not that it couldn't have existed, but now we have a clearer picture for organizing our server logic.
 The major benefit of *kit* is that it provides some nice abstractions that assist in structuring your service. They group a service into these 3 layers:
 
 1. Transport layer
@@ -216,57 +216,61 @@ The major benefit of *kit* is that it provides some nice abstractions that assis
 3. Service layer
 
 #### Transport layer
+Transport layer comes from the [OSI model](https://en.wikipedia.org/wiki/OSI_model#Layer_4:_Transport_layer). The transport layer as it relates to OSI is defined as
+``` means of transferring variable-length data sequences from a source to a destination host, while maintaining the quality of service functions. ```
+HTTP isn't actually a transport layer, but our HTTP.server relies on TCP which falls in the transport layer.
+
 Here you have the flexibility of implementing one or more transports(example HTTP/gRPC). In our example service we
 are using HTTP encoding a json response. The following code is defined in <code>rawkit/server/main.go</code> in our project and we'll look at
 that first.
 
-In this example we won't explore the benefits of multiple transports, but deal only with HTTP & JSON.
+Our example code won't explore the benefits of multiple transports, but work only with HTTP & JSON.
 
 
 ```go
 // using-kit/server/main.go
 
-svc := rawkit.NewThingSvc(logger)
+    svc := rawkit.NewThingSvc(logger)
 
-getThingHandler := httptransport.NewServer(
-loggingMiddleware(log.With(logger, "method", "get-a-thing"))(rawkit.GetAThingEP(svc)),
-rawkit.DecodeGetThingRequest,
-httptransport.EncodeJSONResponse,
-)
+    getThingHandler := httptransport.NewServer(
+    loggingMiddleware(log.With(logger, "method", "get-a-thing"))(rawkit.GetAThingEP(svc)),
+                    rawkit.DecodeGetThingRequest,
+                    httptransport.EncodeJSONResponse,
+    )
 
-r := mux.NewRouter()
-r.Handle("/things/{id:[a-zA-Z]+}", getThingHandler).Methods("GET")
+    r := mux.NewRouter()
+    r.Handle("/things/{id:[a-zA-Z]+}", getThingHandler).Methods("GET")
 
-http.ListenAndServe(DEFAULT_PORT, r)
+    http.ListenAndServe(DEFAULT_PORT, r)
 ```
 
 Breaking down our new main function:
 
-1. Again we are using the same `gorilla/mux` setup for our router.
-2. `httptransport.NewServer` is from the package <code>github.com/go-kit/kit/transport/http<c/ode> and it creates a kit.Server
-                that wraps an endpoint, a decoder for the request, and the <code>kit/transport/http.Server</code>code> type implements http.Handler.
+1. Again we are using the same [gorilla/mux setup for our router](https://github.com/gorilla/mux).
+2. `httptransport.NewServer` is from the package <code>github.com/go-kit/kit/transport/http</code> and it creates a `kit.Server`
+                that wraps an endpoint, a decoder for the request. The <code>kit/transport/http.Server</code>code> type implements http.Handler.
 
 Lets peel this back another layer and look at the Endpoint function, decoders, and encoders that live inside this kit defined type, server, that acts as a wrapper.
 
-`Endpoint` is the fundamental building block of servers and clients. It represents a single RPC method.
+An `Endpoint` is the fundamental building block of servers and clients. It represents a single RPC method.
 Endpoint type is a function that takes in an interface request and returns an interface response. The decoder/encoder
 and endpoint func is where your safety and anti-fragile logic will live. Looking back to our simple server example
-we interact with ` w http.ResponseWriter & r *http.Request` types and we will again here. The first stop on the request path
+we interacted with `http.Request` type and we will again here. The first stop on the request path
 is our decoder.
 
 ```go
-using-kit/service/endpoints.go
-    
+//using-kit/service/endpoints.go
+
 func DecodeGetThingRequest(_ context.Context, r *http.Request) (interface{}, error) {
-var req GetThingRequest
-req.ID = mux.Vars(r)["id"]
-if len(req.ID) == 0 {
-return nil, errors.New("missing ID route param")
-}
-return req, nil
+    var req GetThingRequest
+    req.ID = mux.Vars(r)["id"]
+    if len(req.ID) == 0 {
+        return nil, errors.New("missing ID route param")
+    }
+    return req, nil
 }
 ```
-What should go inside a decoder function and what's it doing?
+What should be inside a decoder function:
 - Here we interact with an `http.Request` struct just like our simple server handlers. The goal is to convert this into a different request struct that our
 underlying service(s) expect.
     - This abstracts away the http transport bit and is a point where we can switch easily for something else if needed.

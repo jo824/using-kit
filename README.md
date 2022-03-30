@@ -7,6 +7,9 @@ It covers building an http server using the Go standard library. Building on tha
 ready microservice.
 
 ## How to use it
+The project exists inside my go path @ <code>$HOME/go/src/using-kit</code>.
+<code>GOPATH=$HOME/go</code>.
+<code>GO111MODULE="off"</code>.
 Examples of using the kit-server code.
 
 - Using Docker.

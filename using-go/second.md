@@ -23,7 +23,7 @@ A programming language built to deal with the challenges of software engineering
 Alright, enough of this and lets actually look at some code.
 
 ### Quick look at syntax
-Go was designed with syntax simplicity and readability in mind. We wanted a feeling of familiarity to existing languages declaration syntax is closer to Pascal's than to C's. The declared name appears before  the type and there are more keywords:
+Go was designed with syntax[^1] simplicity and readability in mind. We wanted a feeling of familiarity to existing languages declaration syntax is closer to Pascal's than to C's. The declared name appears before  the type and there are more keywords:
 Here we declare a function named 'fn' , and a struct of custom type `T`
 
 ```go
@@ -52,7 +52,7 @@ Here's an example of explicit vs derived initialization
 To me, Go feels like a dynamically typed language but I'm still getting the benefits and speed of a statically typed,
 compiled language.
 
-[^1]:[More on syntax in Go](https://go.dev/blog/declaration-syntax)
+[^1]: [More on syntax in Go](https://go.dev/blog/declaration-syntax)
 
 
 ### Interfaces

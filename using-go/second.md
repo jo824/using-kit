@@ -51,7 +51,8 @@ Here's an example of explicit vs derived initialization
 
 To me, Go feels like a dynamically typed language but I'm still getting the benefits and speed of a statically typed,
 compiled language.
-[^1][More on syntax in Go](https://go.dev/blog/declaration-syntax)
+
+[^1]:[More on syntax in Go](https://go.dev/blog/declaration-syntax)
 
 
 ### Interfaces

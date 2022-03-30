@@ -64,9 +64,9 @@ boundaries between components.
 In the next section we'll see concrete examples of using interfaces and how they relate to building our first server.
 
 
-[^2]:[interfaces history](https://research.swtch.com/interfaces)
-[^3]:[more on composition over inheritance](https://go.dev/talks/2012/splash.article#TOC_15.)
-[^4]:[more on types](https://go.dev/doc/faq#types)
+[^2]:[History of Interface in Go](https://research.swtch.com/interfaces)
+[^3]:[more on composition over inheritance](https://go.dev/talks/2012/splash.article#TOC_15.) From 2012 presentation on Go, by Rob Pike
+[^4]:[more on types](https://go.dev/doc/faq#types) Types section from Go dev doc FAQ
 
 ### Building an HTTP server using Go's standard Library.
 Go’s true power comes from the fact that the language is small and the standard library is large. It enables newcomers to ramp up quickly.
@@ -196,8 +196,8 @@ We set the allowable http verb for this route with `.METHODS("GET")`,set expecte
 In this section, we'll talk about Go-kit, which I'll refer to as kit for the rest of this post. Quick note: Having a solid understanding of HTTP[^5] in general will help with the digestion of this content. At a minimum knowing a little bit about what you can expect
 from request/response objects[^6].
 
-[^5]:[http overview](https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview)
-[^6]:[http request/response object info](https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages)
+[^5]:[http overview](https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview) Mozilla documentation of HTTP protocol.
+[^6]:[http request/response object info](https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages) Mozilla documentation of HTTP messages.
 
 ### What is *kit* and why should I use it?
 In their own words[^8] :
@@ -545,8 +545,8 @@ When we think endpoints we should expect to include:
         Err   string `json:"err,omitempty"` // errors don't JSON-marshal, so we use a string
     }
 ```
-Hopefully this has given you a blueprint for building your own services using Go with or without kit. Sticking to this pattern will enable you and your team to focus on business logic, and building features.
-The service is self-policing, enforcing best practices via separation of concerns. I'm confident using the model that kit provides, along with core tooling around Go, anyone can become a proficient contributor quickly(in comparison to other languages/frameworks).
+
+Hopefully, this has given you a blueprint for building your services using Go with or without kit. Sticking to this pattern will enable you and your team to focus on business logic and building features. The service is self-policing, enforcing best practices via separation of concerns. I'm confident that using the model that kit provides and core tooling around Go, anyone can become a proficient contributor quickly(in comparison to other languages/frameworks).
 All of the [example code for this post can be found here](https://github.com/jo824/using-kit)
 
 We'll cover building a pipeline to support continuous deployment in future posts and ways to deploy Go services to different AWS services. And adding observability metrics to the service.

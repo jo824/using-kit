@@ -10,6 +10,9 @@ deps:
 	go get ./...
 	go install ./...
 
+fmt:
+	 go fmt ./...
+
 
 dbuild: gobc
 	docker build --no-cache -t $(APP_NAME) -f using-kit/Dockerfile .

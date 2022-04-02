@@ -6,6 +6,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/transport"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
@@ -35,6 +36,7 @@ func BuildHTTPHandler(svc Service, l log.Logger) http.Handler {
 		encodeResponse,
 		options...,
 	))
+	r.Handle("/metrics",promhttp.Handler())
 
 	return r
 }

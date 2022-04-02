@@ -8,6 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 	"using-kit/using-kit/service"
+
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 const DEFAULT_PORT = ":8008"
@@ -20,9 +23,25 @@ func main() {
 		l = log.With(l, "ts", log.DefaultTimestampUTC)
 		l = log.With(l, "caller", log.DefaultCaller)
 	}
+	obsKeys := []string{"method"}
 
 	svc := service.NewThingSvc()
 	svc = service.LoggingMiddleware(l)(svc)
+	svc = service.NewObserveService(kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "api",
+		Subsystem: "thing_service",
+		Name:      "request_count",
+		Help:      "Number of requests received.",
+	}, obsKeys),
+		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "api",
+			Subsystem: "thing_service",
+			Name:      "request_latency_microseconds",
+			Help:      "Total duration of requests in microseconds.",
+		}, obsKeys),
+		svc,
+	)
+
 	r := service.BuildHTTPHandler(svc, log.With(l, "component", "HTTP"))
 
 	//Here we are taking advantage of go routines and channels

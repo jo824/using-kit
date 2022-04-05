@@ -22,7 +22,7 @@ func main() {
 	router := mux.NewRouter()
 	// register handler we defined - it now responds to any request to path use-handler
 	router.Handle("/use-handler/{name:[a-zA-Z]+}", firstHandler).Methods("GET")
-	router.Handle("/health-check",  http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.Handle("/health-check", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte("OK"))

@@ -29,6 +29,12 @@ func BuildHTTPHandler(svc Service, l log.Logger) http.Handler {
 		options...,
 	))
 
+	r.Methods("POST").Path("/thing").Handler(httptransport.NewServer(
+		eps.PostAddThing,
+		decodePostThingRequest,
+		encodeResponse,
+	))
+
 	r.Methods("GET").Path("/things").Handler(httptransport.NewServer(
 		eps.GetAllThingsEndpoint,
 		decodeGetAllThings,
@@ -46,6 +52,15 @@ func decodeGetThingRequest(_ context.Context, r *http.Request) (interface{}, err
 		return nil, ErrNoID
 	}
 	return req, nil
+}
+
+func decodePostThingRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var req postThingRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return nil, ErrBadRequestBody
+	}
+	return &req, nil
 }
 
 func decodeGetAllThings(_ context.Context, r *http.Request) (interface{}, error) {

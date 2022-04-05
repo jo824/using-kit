@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	ErrNoID          = errors.New("id doesn't exist")
-	ErrAlreadyExists = errors.New("thing with id already exists")
+	ErrNoID           = errors.New("id doesn't exist")
+	ErrAlreadyExists  = errors.New("thing with id already exists")
+	ErrBadRequestBody = errors.New("bad request body")
 )
 
 type Service interface {

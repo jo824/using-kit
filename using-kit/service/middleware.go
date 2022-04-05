@@ -29,8 +29,11 @@ func (mw loggingMiddleware) GetAllThings(ctx context.Context) (ts []Thing, err e
 	return mw.next.GetAllThings(ctx)
 }
 
-func (mw loggingMiddleware) AddThing(_ context.Context, _ *Thing) error {
-	panic("implement me")
+func (mw loggingMiddleware) AddThing(ctx context.Context, t *Thing) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log("method", "AddThing", "took", time.Since(begin), "err", err)
+	}(time.Now())
+	return mw.next.AddThing(ctx, t)
 }
 
 func (mw loggingMiddleware) GetAThing(ctx context.Context, tid string) (t *Thing, err error) {

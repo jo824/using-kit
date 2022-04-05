@@ -34,6 +34,9 @@ func SeedThings() *ThingStore {
 }
 
 func (ts *ThingStore) Save(t *Thing) error {
+	if _, ok := ts.things[t.ID]; ok {
+		return ErrAlreadyExists
+	}
 	ts.things[t.ID] = t
 	return nil
 }

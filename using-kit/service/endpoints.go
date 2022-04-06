@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -25,7 +24,7 @@ func GetAThingEndpoint(svc Service) endpoint.Endpoint {
 		req := request.(getThingRequest)
 		v, err := svc.GetAThing(ctx, req.ID)
 		if err != nil && v == nil {
-			return getThingResponse{}, errors.New("requested thing doesn't exist\n")
+			return nil, err
 		}
 		return getThingResponse{*v, ""}, nil
 	}

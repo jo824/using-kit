@@ -1,7 +1,5 @@
 package service
 
-import "errors"
-
 type Thing struct {
 	ID        string
 	Available bool
@@ -45,7 +43,7 @@ func (ts *ThingStore) Find(id string) (*Thing, error) {
 	if val, ok := ts.things[id]; ok {
 		return val, nil
 	}
-	return nil, errors.New("id not found")
+	return nil, ErrNoID
 }
 
 func (ts *ThingStore) GetAllThings() ([]Thing, error) {

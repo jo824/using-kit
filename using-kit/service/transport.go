@@ -33,6 +33,7 @@ func BuildHTTPHandler(svc Service, l log.Logger) http.Handler {
 		eps.PostAddThing,
 		decodePostThingRequest,
 		encodeResponse,
+		options...,
 	))
 
 	r.Methods("GET").Path("/things").Handler(httptransport.NewServer(
@@ -87,7 +88,7 @@ func codeFrom(err error) int {
 	switch err {
 	case ErrNoID:
 		return http.StatusNotFound
-	case ErrAlreadyExists:
+	case ErrAlreadyExists, ErrBadRequestBody:
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError

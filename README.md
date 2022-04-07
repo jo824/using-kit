@@ -17,14 +17,14 @@ Examples of using the kit-server code.
 
 ### With Docker
 
-![Building](build.png)
+![Building](./images/build.png)
 
-![Running](run.png)
+![Running](./images/run.png)
 
-![cleanup](cleanup.png)
+![cleanup](./images/cleanup.png)
 
 ### As binary
-![bin](bin.png)
+![bin](./images/bin.png)
 
 
 ### Go run

@@ -42,6 +42,7 @@ Go standard library provides us with a complete package for testing, named ... `
 The testing package provides the tools we need to write unit tests. Testing code typically lives in the same package as the code it tests. Looking at our example code we have `service.go` and `service_test.go`
 Let's look at `service_test.go` and the testing function signatures.
 
+### Service layer tests
 ```
 //service_test.go
 
@@ -65,7 +66,8 @@ The only parameter must be `t *Testing.T`, which is a pointer to `type T`. Funct
 - `t.Errorf` is equivalent to Logf followed by Fail.
 
 
+#TODO where to show a full test example?
 
-### http.TestServer
-
+### Transport layer.
+We can find more tests in our transport layer. 
 

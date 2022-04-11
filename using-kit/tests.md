@@ -43,14 +43,14 @@ The testing package provides the tools we need to write unit tests. Testing code
 Let's look at `service_test.go` and the testing function signatures.
 
 ### Service layer tests
-```
+```go
 //service_test.go
 
 package service
 
 import (
-"testing"
-)
+    "testing"
+    )
 
 func TestGetAThing(t *testing.T) {
     ...
@@ -69,5 +69,72 @@ The only parameter must be `t *Testing.T`, which is a pointer to `type T`. Funct
 #TODO where to show a full test example?
 
 ### Transport layer.
-We can find more tests in our transport layer. 
+We can find more tests in our transport layer. Here I like to test the payload bodies, http status codes of each response, and the body of each response.
 
+```go
+
+    func TestHTTP(t *testing.T) {
+        svc := NewThingSvc()
+        h := BuildHTTPHandler(svc, log.NewNopLogger())
+        testSrv := httptest.NewServer(h)
+        defer testSrv.Close()
+
+        addReq := postThingRequest{
+            ID:        "thing1",
+            Available: true,
+        }
+        body, _ := json.Marshal(addReq)
+
+        for _, tc := range []struct {
+            m, url, b string
+            expected      int
+        }{
+            {"GET", testSrv.URL + "/thing/yik", "", http.StatusOK},
+            {"GET", testSrv.URL + "/thing/exists", "", http.StatusNotFound},
+            {"POST", testSrv.URL + "/thing", string(body), http.StatusOK},
+            {"POST", testSrv.URL + "/thing", string(body), http.StatusBadRequest},
+            {"POST", testSrv.URL + "/thing", "", http.StatusBadRequest},
+        } {
+            req, _ := http.NewRequest(tc.m, tc.url, strings.NewReader(tc.b))
+            res, _ := http.DefaultClient.Do(req)
+            if tc.expected != res.StatusCode {
+                t.Errorf("%s %s %s: expected %d have %d", tc.m, tc.url, tc.b, tc.expected, res.StatusCode)
+            }
+        }
+    }
+```
+
+In the example just above we see a table-driven style to testing. We create an anonymous struct in our for-loop. Scoped to tc(testCase) inside our loop. This structure is defined with 4 fields.
+1. HTTP request method.
+2. URL of our test server.
+3. Payload body.
+4. Expected HTTP status code.
+
+The first 3 fields are to build our HTTP request object. The 4th field is an integer that represents the HTTP status code we expect to be returned from our endpoint. Lets run our tests in the service package and view the results.
+We run our tests with the command `GOFLAGS="-count=1" go test 	using-kit/using-kit/service/. -v`.
+- GOFLAGS="-count=1" to disable caching of our test results.
+- '-v' for verbose output.
+
+```
+=== RUN   TestHTTP
+--- PASS: TestHTTP (0.00s)
+=== RUN   TestGetAThing
+=== RUN   TestGetAThing/yik
+=== RUN   TestGetAThing/yak
+=== RUN   TestGetAThing/nope
+--- PASS: TestGetAThing (0.00s)
+--- PASS: TestGetAThing/yik (0.00s)
+--- PASS: TestGetAThing/yak (0.00s)
+--- PASS: TestGetAThing/nope (0.00s)
+=== RUN   TestGetAllThings
+--- PASS: TestGetAllThings (0.00s)
+=== RUN   TestAddThing
+--- PASS: TestAddThing (0.00s)
+PASS
+ok  	using-kit/using-kit/service	0.175s
+
+```
+
+## TODO mention of Go code coverage tooling using ccov.png graphic
+## Provide examples function usage in a test + benchmarking a function.
+## show a test that fails to demonstrate output and fix.

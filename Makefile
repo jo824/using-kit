@@ -32,3 +32,5 @@ gob:  ## build binary for local
 gobc: ## build bin for container
 	GOOS=linux GOARCH=amd64 go build -o ./using-kit/$(APP_NAME)-d ./using-kit/main.go
 
+test: ## run tests, no caching, verbose output
+	GOFLAGS="-count=1" go test 	using-kit/using-kit/service/. -v

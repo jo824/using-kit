@@ -24,6 +24,8 @@ steps:
     - GOOS=linux GOARCH=amd64 go build -o ./using-kit/kit-server-d ./using-kit
     - mv ./using-kit/kit-server-d /go/bin/
     - ls /go/bin/
+  depends_on:
+    - testing
 - name: publish
   image: plugins/ecr
   privileged: true
@@ -40,6 +42,8 @@ steps:
   volumes:
     - name: deps
       path: /go
+  depends_on:
+    - build
   when:
     branch:
       include:

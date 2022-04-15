@@ -22,6 +22,8 @@ steps:
       path: /go
   commands:
     - GOOS=linux GOARCH=amd64 go build -o ./using-kit/kit-server-d ./using-kit
+    - mv ./using-kit/kit-server-d /go/bin/
+    - ls /go/bin/
 - name: publish
   image: plugins/ecr
   settings:
@@ -31,6 +33,8 @@ steps:
       from_secret: aws_secret_access_key
     repo: using-kit
     registry: 644165228998.dkr.ecr.us-east-1.amazonaws.com
+    tags:
+      - latest
     dockerfile: ./using-kit/Dockerfile
   when:
     branch:

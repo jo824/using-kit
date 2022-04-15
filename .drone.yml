@@ -34,6 +34,8 @@ steps:
       from_secret: aws_secret_access_key
     repo: using-kit
     registry: 644165228998.dkr.ecr.us-east-1.amazonaws.com
+    tags:
+      - 0.0.1
     dockerfile: ./using-kit/Dockerfile
     force_tag: true
   volumes:

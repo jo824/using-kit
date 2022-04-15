@@ -27,9 +27,6 @@ steps:
 - name: publish
   image: plugins/ecr
   privileged: true
-  volumes:
-    - name: deps
-      path: /go
   settings:
     access_key:
       from_secret: aws_access_key_id
@@ -40,6 +37,10 @@ steps:
     tags:
       - latest
     dockerfile: ./using-kit/Dockerfile
+  volumes:
+    - name: deps
+      path: /go
+  commands: ls /go/bin/
   when:
     branch:
       include:

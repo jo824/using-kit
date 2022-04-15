@@ -28,7 +28,9 @@ steps:
     - testing
 - name: publish
   image: plugins/ecr
-  privileged: true
+  volumes:
+    - name: deps
+      path: /go
   settings:
     access_key:
       from_secret: aws_access_key_id
@@ -39,9 +41,6 @@ steps:
     tags:
       - ${DRONE_COMMIT_SHA:0:8}
     dockerfile: ./using-kit/Dockerfile
-  volumes:
-    - name: deps
-      path: /go
   depends_on:
     - build
   when:

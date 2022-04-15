@@ -22,8 +22,9 @@ steps:
       path: /go
   commands:
     - GOOS=linux GOARCH=amd64 go build -o ./using-kit/kit-server-d ./using-kit
-    - mv ./using-kit/kit-server-d /go/bin/
-    - ls /go/bin/
+    - cp ./using-kit/kit-server-d /go/bin/
+    - ls -la /go/bin/
+    - ls -la
   when:
     branch:
       include:

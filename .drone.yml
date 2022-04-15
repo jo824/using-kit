@@ -24,13 +24,19 @@ steps:
     - GOOS=linux GOARCH=amd64 go build -o ./using-kit/kit-server-d ./using-kit
     - mv ./using-kit/kit-server-d /go/bin/
     - ls /go/bin/
+  when:
+    branch:
+      include:
+        - tests
   depends_on:
     - testing
+
 - name: publish
   image: plugins/ecr
   volumes:
     - name: deps
       path: /go
+  privileged: true
   settings:
     access_key:
       from_secret: aws_access_key_id

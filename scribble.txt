@@ -1,0 +1,11 @@
+aws ecr describe-images --repository-name using-kit
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 644165228998.dkr.ecr.us-east-1.amazonaws.com
+docker pull 644165228998.dkr.ecr.us-east-1.amazonaws.com/using-kit:latest
+
+
+netstat -ltnp | grep -w ':80'
+ssh -i ~/.ssh/DroneKey.pem ubuntu@ec2-44-199-135-248.compute-1.amazonaws.com
+sudo su -
+https://plugins.drone.io/drone-plugins/drone-docker/
+
+ruby -ryaml -e "p YAML.load(STDIN.read)" < .drone.yml

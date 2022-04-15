@@ -1,4 +1,4 @@
-module using-kit/using-kit
+module using-kit
 
 go 1.17
 

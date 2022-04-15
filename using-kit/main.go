@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"using-kit/using-kit/service"
+	"using-kit/service"
 )
 
 const DEFAULT_PORT = ":8008"

@@ -6,14 +6,9 @@ name: default
 steps:
   - name: testing
     image: golang:1.17
-    environment:
-      GO111MODULE: off
     commands:
-      - export GOPATH=$HOME
-      - echo $GOPATH
       - make deps
       - make test
-      - make gob
     when:
       branch:
           include:

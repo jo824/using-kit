@@ -6,9 +6,9 @@ APP_NAME=kit-server
 ## https://go.dev/blog/using-go-modules
 ## https://github.com/golang/go/issues/38812
 deps:
-	export GO111MODULE=off
-	go get ./...
-	go install ./...
+	cd using-kit
+	go mod init using-kit
+	go mod tidy
 
 
 dbuild: gobc

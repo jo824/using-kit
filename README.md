@@ -1,4 +1,4 @@
-[![Build Status](http://90d1-69-126-160-199.ngrok.io/api/badges/jo824/using-kit/status.svg?ref=refs/heads/main)](http://90d1-69-126-160-199.ngrok.io/jo824/using-kit)
+[![Build Status](https://drone.yikyak.org/api/badges/jo824/using-kit/status.svg?ref=refs/heads/tests)](https://drone.yikyak.org/jo824/using-kit)
 
 # What is this project?
 This project is provided as supplementary material to [this blog post](). The post is an aggregation of

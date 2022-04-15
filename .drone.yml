@@ -7,7 +7,9 @@ steps:
   - name: testing
     image: golang:1.17
     commands:
-#      - go build
-#     - go test
-#wait until we have the drone runner up
-...
+      - echo yak
+      - make test
+    when:
+      branch:
+          include:
+            - tests

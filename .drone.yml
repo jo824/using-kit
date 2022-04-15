@@ -34,14 +34,14 @@ steps:
       from_secret: aws_secret_access_key
     repo: using-kit
     registry: 644165228998.dkr.ecr.us-east-1.amazonaws.com
-    tags:
-      - latest
     dockerfile: ./using-kit/Dockerfile
+    force_tag: true
   volumes:
     - name: deps
       path: /go
   commands:
     - ls /go/bin/
+    - env
   when:
     branch:
       include:

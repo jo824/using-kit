@@ -10,8 +10,10 @@ steps:
       GO111MODULE: off
     commands:
       - export GOPATH=$HOME
-      - echo yak
+      - echo $GOPATH
+      - make deps
       - make test
+      - make gob
     when:
       branch:
           include:

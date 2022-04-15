@@ -4,12 +4,28 @@ type: docker
 name: default
 
 steps:
-  - name: testing
-    image: golang:1.17
-    commands:
-      - make deps
-      - make test
-    when:
-      branch:
-          include:
-            - tests
+- name: testing
+  image: golang:1.17
+  volumes:
+    - name: deps
+      path: /go
+  commands:
+    - make test
+  when:
+    branch:
+        include:
+          - tests
+- name: build
+  image: golang:1.17
+  volumes:
+    - name: deps
+      path: /go
+  commands:
+    - GOOS=linux GOARCH=amd64 go build -o ./using-kit/kit-server ./using-kit
+  when:
+    branch:
+      include:
+        - tests
+volumes:
+- name: deps
+  temp: {}

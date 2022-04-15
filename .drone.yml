@@ -40,7 +40,8 @@ steps:
   volumes:
     - name: deps
       path: /go
-  commands: ls /go/bin/
+  commands:
+    - ls /go/bin/
   when:
     branch:
       include:

@@ -26,6 +26,9 @@ steps:
     - ls /go/bin/
 - name: publish
   image: plugins/ecr
+  volumes:
+    - name: deps
+      path: /go
   settings:
     access_key:
       from_secret: aws_access_key_id

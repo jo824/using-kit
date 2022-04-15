@@ -7,7 +7,7 @@ steps:
   - name: testing
     image: golang:1.17
     environment:
-      GO111MODULE="off"
+      GO111MODULE=off
     commands:
       - export GOPATH=$HOME
       - echo yak

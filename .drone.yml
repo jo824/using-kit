@@ -26,6 +26,7 @@ steps:
     - ls /go/bin/
 - name: publish
   image: plugins/ecr
+  privileged: true
   volumes:
     - name: deps
       path: /go

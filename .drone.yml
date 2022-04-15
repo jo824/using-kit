@@ -3,12 +3,12 @@ kind: pipeline
 type: docker
 name: default
 
-workspace:
-  path: /go
-
 steps:
 - name: testing
   image: golang:1.17
+  volumes:
+    - name: deps
+      path: /go
   commands:
     - make test
   when:
@@ -17,6 +17,9 @@ steps:
           - tests
 - name: build
   image: golang:1.17
+  volumes:
+    - name: deps
+      path: /go
   commands:
     - GOOS=linux GOARCH=amd64 go build -o ./using-kit/kit-server-d ./using-kit
     - mv ./using-kit/kit-server-d /go/bin/
@@ -30,6 +33,9 @@ steps:
 
 - name: publish
   image: plugins/ecr
+  volumes:
+    - name: deps
+      path: /go
   privileged: true
   settings:
     access_key:
@@ -47,3 +53,6 @@ steps:
     branch:
       include:
         - tests
+volumes:
+- name: deps
+  temp: {}

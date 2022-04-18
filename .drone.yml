@@ -21,10 +21,10 @@ steps:
     - name: deps
       path: /go
   commands:
-    - GOOS=linux GOARCH=amd64 go build -o ./using-kit/kit-server-d ./using-kit
+    - GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ./using-kit/kit-server-d ./using-kit
     - cp ./using-kit/kit-server-d /go/bin/
     - ls -la /go/bin/
-    - ls -la
+    - ls -la using-kit/
   when:
     branch:
       include:

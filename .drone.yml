@@ -46,6 +46,7 @@ steps:
     repo: using-kit
     registry: 644165228998.dkr.ecr.us-east-1.amazonaws.com
     tags:
+      - latest
       - ${DRONE_COMMIT_SHA:0:8}
     dockerfile: ./using-kit/Dockerfile
   depends_on:
